@@ -1,2 +1,2 @@
-# Ki-m_Th-_Ph-n_M-m
+# Kiem_Thu_Phan_Mem
 Dự án kiểm thử phần mềm về đề tài Healthcare 
