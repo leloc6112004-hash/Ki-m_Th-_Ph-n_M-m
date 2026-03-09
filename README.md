@@ -6,6 +6,12 @@
 
 ---
 
+## Mô tả dự án
+
+Dự án **Healthcare** là hệ thống phần mềm hỗ trợ quản lý và cung cấp dịch vụ chăm sóc sức khỏe trực tuyến giữa bệnh nhân và cơ sở y tế. Hệ thống cho phép bệnh nhân đăng ký/đăng nhập, đặt lịch khám với bác sĩ, thanh toán đặt cọc và theo dõi kết quả khám hoặc đơn thuốc sau khi khám bệnh. Ngoài ra, hệ thống còn hỗ trợ bác sĩ trong việc quản lý lịch khám, ghi nhận chẩn đoán và kê đơn thuốc cho bệnh nhân. Đối với quản trị viên (Admin), hệ thống cung cấp các chức năng quản lý thông tin bác sĩ, danh mục chuyên khoa và danh mục thuốc nhằm đảm bảo việc vận hành hệ thống hiệu quả và chính xác.
+
+---
+
 ## Danh sách thành viên - Nhóm 5
 
 | STT | Thành viên |
@@ -18,18 +24,3 @@
 ---
 
 ## Phân rã chức năng
-
-### Bệnh nhân
-- Đặt lịch khám online (chọn bác sĩ, ngày giờ)
-- Thanh toán đặt cọc
-- Xem đơn thuốc / kết quả khám
-
-### Bác sĩ
-- Xem lịch khám trong ngày
-- Khám bệnh (ghi chẩn đoán)
-- Kê đơn thuốc
-
-### Admin
-- Quản lý bác sĩ (CRUD)
-- Quản lý danh mục chuyên khoa
-- Quản lý danh mục thuốc
