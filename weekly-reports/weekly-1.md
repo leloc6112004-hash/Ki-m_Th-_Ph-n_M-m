@@ -1,9 +1,9 @@
 #FORMAT Báo cáo tuần (weekly report)
 
-**Tuần:** 1 (02/03/2026 - 08/03/2026) 
-**Nhóm:** 5
- **Đề tài:** Quản lý phòng khám 
-**Nhóm trưởng:** Lê Hữu Lộc - 2254052040
+**Tuần:** 1 (02/03/2026 - 08/03/2026)  
+**Nhóm:** 5 
+**Đề tài:** Quản lý phòng khám  
+**Nhóm trưởng:** Lê Hữu Lộc - 2254052040 
  --- 
 ## 1. Công việc đã hoàn thành 
 | Thành viên | MSSV | Công việc | Link Commit/PR | 
