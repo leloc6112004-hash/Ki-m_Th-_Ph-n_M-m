@@ -1,13 +1,19 @@
 import { RouterProvider } from "react-router";
 import { router } from "./routes";
 import { Toaster } from "sonner";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, AppointmentProvider, MedicalRecordProvider, DoctorAuthProvider } from "./context";
 
 export default function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
-      <Toaster position="top-center" richColors />
+      <DoctorAuthProvider>
+        <AppointmentProvider>
+          <MedicalRecordProvider>
+            <RouterProvider router={router} />
+            <Toaster position="top-center" richColors />
+          </MedicalRecordProvider>
+        </AppointmentProvider>
+      </DoctorAuthProvider>
     </AuthProvider>
   );
 }

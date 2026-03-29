@@ -7,8 +7,15 @@ import { DoctorsSection } from "../components/doctors-section";
 import { SpecialtiesSection } from "../components/specialties-section";
 import { AppointmentSection } from "../components/appointment-section";
 import { Footer } from "../components/footer";
+import { PatientOverlay } from "../components/patient-overlay";
+import { useAuth } from "../context/AuthContext";
 
 export default function HomePage() {
+  const { isAuthenticated, username } = useAuth();
+  
+  // Check if logged in user is a patient
+  const isPatient = isAuthenticated && username === "Benhnhan@gmail.com";
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -22,6 +29,9 @@ export default function HomePage() {
         <AppointmentSection />
       </main>
       <Footer />
+      
+      {/* Patient Overlay - Only show for patient users */}
+      {isPatient && <PatientOverlay />}
     </div>
   );
 }

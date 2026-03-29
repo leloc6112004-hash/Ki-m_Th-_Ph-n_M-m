@@ -1,4 +1,4 @@
-import { Calendar, FileText, ClipboardList } from "lucide-react";
+import { Calendar, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
 
@@ -18,14 +18,6 @@ export function QuickAccessSection() {
       color: "bg-green-500",
       hoverColor: "hover:bg-green-600",
       route: "/dat-lich-hen",
-    },
-    {
-      icon: FileText,
-      title: "Xem đơn thuốc",
-      description: "Tra cứu đơn thuốc và lịch sử điều trị",
-      color: "bg-blue-500",
-      hoverColor: "hover:bg-blue-600",
-      route: "/xem-don-thuoc",
     },
     {
       icon: ClipboardList,
@@ -51,7 +43,7 @@ export function QuickAccessSection() {
         </div>
 
         {/* Quick Access Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 max-w-4xl mx-auto">
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (

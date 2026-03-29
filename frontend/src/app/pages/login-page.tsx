@@ -88,7 +88,10 @@ export default function LoginPage() {
     }
 
     // Mock login - check against demo account
-    if (username === "leloc6112004@gmail.com" && password === "123456A@a") {
+    if (
+      username === "leloc6112004@gmail.com" && password === "123456A@a" ||
+      username === "Benhnhan@gmail.com" && password === "Benhnhan123@@"
+    ) {
       toast.success("Đăng nhập thành công!");
       login(username); // Set authentication state
       setTimeout(() => {

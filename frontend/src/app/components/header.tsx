@@ -32,7 +32,7 @@ export function Header() {
               <>
                 {/* User Greeting */}
                 <span className="text-gray-700 font-medium text-sm xl:text-base mr-2">
-                  Xin chào, <span className="text-blue-600">{username}</span>
+                  Xin chào!
                 </span>
 
                 {/* Feature Buttons */}
@@ -42,14 +42,6 @@ export function Header() {
                 >
                   <Calendar className="w-4 h-4" />
                   <span>Đặt lịch hẹn</span>
-                </button>
-
-                <button
-                  onClick={() => navigate("/xem-don-thuoc")}
-                  className="flex items-center gap-1.5 px-3 xl:px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-md hover:shadow-lg text-sm xl:text-base"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Xem đơn thuốc</span>
                 </button>
 
                 <button
@@ -120,17 +112,6 @@ export function Header() {
                   >
                     <Calendar className="w-5 h-5" />
                     <span className="font-medium">Đặt lịch hẹn</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      navigate("/xem-don-thuoc");
-                      setMobileMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors shadow-md"
-                  >
-                    <FileText className="w-5 h-5" />
-                    <span className="font-medium">Xem đơn thuốc</span>
                   </button>
 
                   <button

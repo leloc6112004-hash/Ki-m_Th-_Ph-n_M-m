@@ -1,6 +1,8 @@
-import { MapPin, Phone, Mail, Facebook, Instagram, Twitter, Heart } from "lucide-react";
+import { MapPin, Phone, Mail, Facebook, Instagram, Twitter, Heart, Stethoscope } from "lucide-react";
+import { useNavigate } from "react-router";
 
 export function Footer() {
+  const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -109,8 +111,19 @@ export function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="border-t border-gray-800 mt-12 pt-8 text-center text-sm">
-          <p>© {currentYear} Ecommer Health. All rights reserved.</p>
+        <div className="border-t border-gray-800 mt-12 pt-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-center md:text-left">© {currentYear} Ecommer Health. All rights reserved.</p>
+            
+            {/* Doctor Portal Link */}
+            <button
+              onClick={() => navigate("/bacsi/login")}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+            >
+              <Stethoscope className="w-4 h-4" />
+              Đăng nhập Bác sĩ
+            </button>
+          </div>
         </div>
       </div>
     </footer>
