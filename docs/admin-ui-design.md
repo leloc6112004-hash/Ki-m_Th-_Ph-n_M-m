@@ -4,7 +4,7 @@
 ![Admin Login](ui-design/admin_ui_design/AdminLogin.png)
 
 ### 2. Admin Dashboard Overview
-![Admin Dashboard](ui-design/admin_ui_design/AdminDashboard.png)
+![Admin Dashboard](ui-design/admin_ui_design/AdminDashbord.png)
 
 ### 3. Manage Accounts
 ![Manage Accounts](ui-design/admin_ui_design/manageAccount.png)
