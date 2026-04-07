@@ -137,7 +137,7 @@ public class UserServiceImpl implements UserServices {
                 existingUser.setAvatar(res.get("secure_url").toString());
             } catch (IOException ex) {
                 System.err.println("Lỗi khi tải ảnh lên Cloudinary: " + ex.getMessage());
-                return null; 
+                return null;
             }
         }
 
@@ -149,5 +149,16 @@ public class UserServiceImpl implements UserServices {
         return this.userRepo.getUserById(id);
     }
 
-    
+    @Override
+    public boolean existsByEmail(String email) {
+        return userRepo.findByEmail(email) != null;
+    }
+
+    @Override
+    public void resetPassword(String email, String newPassword) {
+        Users user = userRepo.findByEmail(email);
+        // Mã hóa password trước khi lưu
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepo.update(user);
+    }
 }

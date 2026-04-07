@@ -4,6 +4,7 @@
  */
 package com.vnh.controllers;
 
+import com.vnh.dto.ForgotPasswordDto;
 import com.vnh.dto.PatientDto;
 import com.vnh.dto.UserDto;
 import com.vnh.mapper.PatientMapper;
@@ -11,10 +12,12 @@ import com.vnh.mapper.UserMapper;
 import com.vnh.pojo.MedicalRecords;
 import com.vnh.pojo.Patients;
 import com.vnh.pojo.Users;
+import com.vnh.services.EmailService;
 import com.vnh.services.MedicalRecordService;
 import com.vnh.services.PatientService;
 import com.vnh.services.UserServices;
 import com.vnh.utils.JwtUtils;
+import com.vnh.utils.OtpUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.security.Principal;
@@ -48,20 +51,27 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class ApiUserController {
 
     @Autowired
+    private OtpUtils otpUtils;
+
+    @Autowired
+    private EmailService emailService;
+    @Autowired
     private UserServices userDetailsService;
+    @Autowired
+    private UserServices userServices;
     @Autowired
     private MedicalRecordService medicalRecordService;
     @Autowired
     private PatientService patientService;
-    
+
     @PostMapping(path = "/users",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Users> create(@RequestParam Map<String, String> params, @RequestParam(value = "avatar") MultipartFile avatar) {
         return new ResponseEntity<>(this.userDetailsService.addUser(params, avatar), HttpStatus.CREATED);
     }
-    
-     @PostMapping("/login")
+
+    @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Users u) {
         if (this.userDetailsService.authenticate(u.getUsername(), u.getPassword())) {
             try {
@@ -95,8 +105,8 @@ public class ApiUserController {
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Sai thông tin đăng nhập");
     }
-    
-     @GetMapping("/secure/profile")
+
+    @GetMapping("/secure/profile")
     public ResponseEntity<Users> getProfile(Principal principal) {
         if (principal == null || principal.getName() == null) {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
@@ -107,7 +117,7 @@ public class ApiUserController {
         }
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
-    
+
     @PatchMapping(path = "/users/{userId}",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
@@ -125,4 +135,30 @@ public class ApiUserController {
         return new ResponseEntity<>(updatedUser, HttpStatus.OK);
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordDto dto) {
+        // Kiểm tra email tồn tại
+        if (!userServices.existsByEmail(dto.getEmail())) {
+            return ResponseEntity.badRequest().body("Email không tồn tại!");
+        }
+        String otp = otpUtils.generateOtp(dto.getEmail());
+        emailService.sendOtp(dto.getEmail(), otp);
+        return ResponseEntity.ok("OTP đã được gửi đến email của bạn!");
+    }
+
+// Bước 2: Xác nhận OTP
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody ForgotPasswordDto dto) {
+        if (!otpUtils.verifyOtp(dto.getEmail(), dto.getOtp())) {
+            return ResponseEntity.badRequest().body("OTP không hợp lệ hoặc đã hết hạn!");
+        }
+        return ResponseEntity.ok("OTP hợp lệ!");
+    }
+
+// Bước 3: Đặt lại mật khẩu
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ForgotPasswordDto dto) {
+        userServices.resetPassword(dto.getEmail(), dto.getNewPassword());
+        return ResponseEntity.ok("Đặt lại mật khẩu thành công!");
+    }
 }

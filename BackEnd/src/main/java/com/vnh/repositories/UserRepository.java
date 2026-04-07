@@ -23,4 +23,9 @@ public interface UserRepository {
     Users getUserById(int id);
 
     Users updateUser(Users user);
+
+    Users findByEmail(String email);
+
+    void update(Users user);
+
 }
