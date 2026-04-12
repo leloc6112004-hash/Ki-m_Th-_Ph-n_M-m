@@ -78,4 +78,21 @@ public class UserRepositoryImpl implements UserRepository {
         return user;
     }
 
+    @Override
+    public Users findByEmail(String email) {
+        Session session = this.factory.getObject().getCurrentSession();
+        Query query = session.createQuery(
+                "FROM Users u WHERE u.email = :email", Users.class
+        );
+        query.setParameter("email", email);
+        List<Users> result = query.getResultList();
+        return result.isEmpty() ? null : result.get(0);
+    }
+
+    @Override
+    public void update(Users user) {
+        Session session = this.factory.getObject().getCurrentSession();
+        session.merge(user);
+    }
+
 }
