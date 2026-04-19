@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.vnh.repositories.impl;
 
 import com.vnh.pojo.Prescriptions;
@@ -12,28 +8,50 @@ import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- *
- * @author Nguyen Hung
- */
+import java.util.List;
+import jakarta.persistence.Query;
+
 @Repository
 @Transactional
-public class PrescriptionsRepositoryImpl implements PrescriptionsRepository{
+public class PrescriptionsRepositoryImpl implements PrescriptionsRepository {
 
-     @Autowired
+    @Autowired
     private LocalSessionFactoryBean sessionFactory;
-     
+
     @Override
-    public void savePrescription(Prescriptions prescription) {
-        Session session = this.sessionFactory.getObject().getCurrentSession();
-         session.persist(prescription);
-       
+    public List<Prescriptions> getPrescriptions() {
+        Session s = this.sessionFactory.getObject().getCurrentSession();
+        // Fetch đầy đủ thông tin để DTO Mapper hoạt động
+        String hql = "SELECT p FROM Prescriptions p " +
+                     "JOIN FETCH p.doctorId d " +
+                     "JOIN FETCH d.userId " +
+                     "JOIN FETCH p.medicalRecordId m " +
+                     "JOIN FETCH m.patientId pat " +
+                     "JOIN FETCH pat.userId";
+        return s.createQuery(hql, Prescriptions.class).getResultList();
     }
 
     @Override
     public Prescriptions getPrescriptionById(int id) {
-         Session session = this.sessionFactory.getObject().getCurrentSession();
-        return session.find(Prescriptions.class, id);
+        Session s = this.sessionFactory.getObject().getCurrentSession();
+        try {
+            String hql = "SELECT p FROM Prescriptions p " +
+                         "JOIN FETCH p.doctorId d " +
+                         "JOIN FETCH d.userId " +
+                         "JOIN FETCH p.medicalRecordId " +
+                         "WHERE p.id = :id";
+            return s.createQuery(hql, Prescriptions.class)
+                    .setParameter("id", id)
+                    .getSingleResult();
+        } catch (Exception e) {
+            return null;
+        }
     }
-    
+
+    @Override
+    public void savePrescription(Prescriptions prescription) {
+        Session s = this.sessionFactory.getObject().getCurrentSession();
+        if (prescription.getId() != null) s.merge(prescription);
+        else s.persist(prescription);
+    }
 }

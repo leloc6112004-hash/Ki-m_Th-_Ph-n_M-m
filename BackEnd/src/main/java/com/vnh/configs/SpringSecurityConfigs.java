@@ -62,12 +62,11 @@ public class SpringSecurityConfigs {
     @Bean
     @Order(1)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
-        http.securityMatcher("/api/**", "/swagger-ui/**", "/v3/api-docs/**") // Thêm matcher cho Swagger
+        http.securityMatcher("/api/**", "/swagger-ui/**", "/v3/api-docs/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(c -> c.configurationSource(corsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                // Cho phép truy cập giao diện và tài liệu Swagger
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**","/webjars/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users", "/api/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/specialties/**", "/api/doctors/**", "/api/medicines/**").permitAll()
@@ -91,13 +90,15 @@ public class SpringSecurityConfigs {
         http
                 .authorizeHttpRequests(requests -> requests
                 .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
+                .requestMatchers("/login").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/", "/home").authenticated()
-                .requestMatchers("/medicines").hasRole("ADMIN")
+                .requestMatchers("/medicines/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
                 )
                 .formLogin(form -> form.loginPage("/login")
                 .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/", true)
+                .defaultSuccessUrl("/", true) // Quay lại trang chủ cũ
                 .failureUrl("/login?error=true").permitAll())
                 .logout(logout -> logout.logoutSuccessUrl("/login").permitAll());
 

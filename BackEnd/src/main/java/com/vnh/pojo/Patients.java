@@ -4,7 +4,6 @@
  */
 package com.vnh.pojo;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Basic;
 import jakarta.persistence.CascadeType;
@@ -46,19 +45,22 @@ public class Patients implements Serializable {
     @Size(min = 1, max = 20)
     @Column(name = "patient_code")
     private String patientCode;
+    
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "patientId")
-    @JsonIgnore
+    @JsonIgnore // Tránh đệ quy JSON
     private Collection<Appointments> appointmentsCollection;
+    
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "patientId")
-    @JsonIgnore
+    @JsonIgnore // Tránh đệ quy JSON
     private Collection<MedicalRecords> medicalRecordsCollection;
+    
     @MapsId
     @JoinColumn(name = "id", referencedColumnName = "id", insertable = false, updatable = false)
     @OneToOne(optional = false)
-    
     private Users userId;
+    
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "patientId")
-    @JsonIgnore
+    @JsonIgnore // Tránh đệ quy JSON
     private Collection<Bills> billsCollection;
 
     public Patients() {

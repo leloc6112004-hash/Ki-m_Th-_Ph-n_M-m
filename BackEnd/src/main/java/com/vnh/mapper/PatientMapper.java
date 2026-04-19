@@ -1,20 +1,21 @@
 package com.vnh.mapper;
 
-
-import com.vnh.pojo.Patients;
 import com.vnh.dto.PatientDto;
-import com.vnh.mapper.UserMapper;
-import org.springframework.stereotype.Component;
-@Component
+import com.vnh.pojo.Patients;
+
 public class PatientMapper {
     public static PatientDto toPatientDto(Patients patient) {
         if (patient == null) {
             return null;
         }
-        PatientDto dto = new PatientDto();
-        dto.setId(patient.getId());
-        dto.setPatientCode(patient.getPatientCode());
-        dto.setUser(UserMapper.toUserDto(patient.getUserId()));
-        return dto;
+        return PatientDto.builder()
+                .id(patient.getId())
+                .patientCode(patient.getPatientCode())
+                .fullName(patient.getUserId() != null ? patient.getUserId().getFullName() : null)
+                .username(patient.getUserId() != null ? patient.getUserId().getUsername() : null)
+                .email(patient.getUserId() != null ? patient.getUserId().getEmail() : null)
+                .phoneNumber(patient.getUserId() != null ? patient.getUserId().getPhoneNumber() : null)
+                .avatar(patient.getUserId() != null ? patient.getUserId().getAvatar() : null)
+                .build();
     }
 }

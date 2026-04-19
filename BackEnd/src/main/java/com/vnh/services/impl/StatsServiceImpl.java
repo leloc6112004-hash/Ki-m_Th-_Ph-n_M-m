@@ -5,40 +5,42 @@ import com.vnh.services.StatsServices;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class StatsServiceImpl implements StatsServices {
-    
+
     @Autowired
-    private StatsRepository statsRepository;
+    private StatsRepository statsRepo;
 
     @Override
     public List<Object[]> countPatientsByGender() {
-        return this.statsRepository.countPatientsByGender();
+        return statsRepo.countPatientsByGender();
     }
 
     @Override
     public List<Object[]> countPatientsByAgeGroup() {
-        return this.statsRepository.countPatientsByAgeGroup();
+        return statsRepo.countPatientsByAgeGroup();
     }
 
     @Override
     public List<Object[]> countPatientsBySpecialty() {
-        return this.statsRepository.countPatientsBySpecialty();
+        return statsRepo.countPatientsBySpecialty();
     }
 
     @Override
     public List<Object[]> countServicesUsed() {
-        return this.statsRepository.countServicesUsed();
+        return statsRepo.topUsedServices();
     }
 
     @Override
     public List<Object[]> countPopularDiseases() {
-        return this.statsRepository.countPopularDiseases();
+        return statsRepo.popularDiseases();
     }
 
     @Override
     public List<Object[]> getRevenueByTime(String time, int year) {
-        return this.statsRepository.getRevenueByTime(time, year);
+        return statsRepo.revenueByTime(year, time);
     }
 }

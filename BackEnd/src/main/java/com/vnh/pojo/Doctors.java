@@ -54,18 +54,21 @@ public class Doctors implements Serializable {
     @Size(max = 65535)
     @Column(name = "biography")
     private String biography;
+    
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "doctorId")
-    @JsonIgnore
+    @JsonIgnore // Tránh đệ quy
     private Collection<Appointments> appointmentsCollection;
+    
     @JoinColumn(name = "specialty_id", referencedColumnName = "id")
     @ManyToOne
-    @JsonIgnore
     private Specialties specialtyId;
+    
     @JoinColumn(name = "id", referencedColumnName = "id", insertable = false, updatable = false)
     @OneToOne(optional = false)
     private Users userId;
+    
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "doctorId")
-    @JsonIgnore
+    @JsonIgnore // Tránh đệ quy
     private Collection<Prescriptions> prescriptionsCollection;
 
     public Doctors() {
@@ -128,6 +131,14 @@ public class Doctors implements Serializable {
         this.specialtyId = specialtyId;
     }
 
+    public Users getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Users users) {
+        this.userId = users;
+    }
+    
     public Users getUsers() {
         return userId;
     }

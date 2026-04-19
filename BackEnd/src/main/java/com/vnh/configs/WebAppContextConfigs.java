@@ -28,7 +28,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @ComponentScan(basePackages = {
     "com.vnh.controllers",
     "com.vnh.repositories",
-    "com.vnh.services"
+    "com.vnh.services",
+    "com.vnh.utils" 
 })
 public class WebAppContextConfigs implements WebMvcConfigurer {
 

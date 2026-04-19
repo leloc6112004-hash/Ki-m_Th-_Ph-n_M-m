@@ -1,27 +1,14 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package com.vnh.services;
 
 import com.vnh.dto.PatientDto;
-
 import com.vnh.pojo.Patients;
 import java.util.List;
 
-/**
- *
- * @author Nguyen Hung
- */
 public interface PatientService {
-
+    List<Patients> getPatients();
     Patients getPatientById(int id);
-
-    Patients getPatientByUserId(int userId);
-
-    Patients addPatient(Patients p);
-
+    void addPatient(Patients p); // Đổi thành void để khớp repo
     List<Patients> findByDoctorId(int doctorId);
-
+    Patients getPatientByUserId(int userId);
     PatientDto getPatientByUsername(String username);
 }
