@@ -12,9 +12,9 @@
 | Thành viên | MSSV | Công việc | Link Commit/PR | 
 |------------|------|-----------|----------------|
 | Lê Hữu Lộc | 2254052040 | docs: refine UI design (admin, patient, doctor) and update use case specifications | 90db18c |
-| Nguyễn Trí Lợi | 2254050034 | - | - | 
-| Nguyễn Lê Đăng Khoa | 2151010172 | - | - | 
-| Võ Nguyên Hùng | 2151010144 | Merge branch 'dev' of https://github.com/leloc6112004-hash/Healthcare-Project-Management into dev| 4b351f1 | 
+| Nguyễn Trí Lợi | 2254050034 | docs: Add use case specification for patient module | 22d2742 | 
+| Nguyễn Lê Đăng Khoa | 2151010172 | feat: implement Forgot Password functionality and improve App component structure | f94a134 | 
+| Võ Nguyên Hùng | 2151010144 | feat: thêm chức năng quên mật khẩu qua OTP email| 9ea091f| 
 
 ---
 
