@@ -1,69 +1,169 @@
-
-
-import React from 'react';
-import { Container, Row, Col, Card, Button } from 'react-bootstrap';
-import { FaUserEdit, FaCalendarPlus, FaHistory, FaFileMedical, FaCalendarCheck } from 'react-icons/fa';
+import React, { useEffect, useState, useContext } from 'react';
+import { Container, Row, Col, Card, Button, Badge, Table, Alert, Spinner } from 'react-bootstrap';
+import { FaUserEdit, FaCalendarPlus, FaFileMedical, FaCalendarAlt, FaCreditCard, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-
+import { MyUserContext } from '../config/MyContexts';
+import { authApis, endpoints } from '../config/Apis';
 
 const PatientDashboard = () => {
-    return (
-        <Container className="my-5">
-            <h1 className="text-center mb-4">Xin chào, Bệnh nhân!</h1>
-            <p className="text-center text-muted mb-5">
-                Đây là bảng điều khiển của bạn. Bạn có thể quản lý hồ sơ và lịch hẹn tại đây.
-            </p>
+    const [user] = useContext(MyUserContext);
+    const [appointments, setAppointments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [paymentLoading, setPaymentLoading] = useState(false);
 
-            <Row className="g-4 justify-content-center">
-                <Col md={6} lg={4}>
-                    <Card className="shadow h-100 text-center">
-                        <Card.Body>
-                            <FaUserEdit size={60} className="text-primary mb-3" />
-                            <Card.Title>Quản lý hồ sơ</Card.Title>
-                            <Card.Text>Cập nhật thông tin cá nhân và hồ sơ sức khỏe.</Card.Text>
-                            <Link to="/profile/edit">
-                                <Button variant="primary" className="mt-3">Xem chi tiết</Button>
-                            </Link>
-                        </Card.Body>
-                    </Card>
+    const fetchMyAppointments = async () => {
+        try {
+            setLoading(true);
+            const res = await authApis().get(endpoints['my-appointments-patient']);
+            if (res.data.status === 200) {
+                // Backend đã lọc: a.appointmentDate >= CURRENT_DATE
+                setAppointments(res.data.data || []);
+            }
+        } catch (err) {
+            console.error("Lỗi tải lịch hẹn:", err);
+            setError("Không thể tải danh sách lịch hẹn.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (user) fetchMyAppointments();
+    }, [user]);
+
+    const handlePayment = async (appId) => {
+        try {
+            setPaymentLoading(true);
+            const res = await authApis().get(endpoints['vnpay-url'](appId));
+            
+            if (res.data.status === 200) {
+                const vnpayUrl = res.data.data;
+                window.location.href = vnpayUrl;
+            } else {
+                alert(res.data.message || "Không thể tạo liên kết thanh toán.");
+            }
+        } catch (err) {
+            console.error("Payment error:", err);
+            alert("Lỗi kết nối đến cổng thanh toán VNPAY.");
+        } finally {
+            setPaymentLoading(false);
+        }
+    };
+
+    return (
+        <Container className="py-5">
+            <Row className="mb-5 align-items-center">
+                <Col md={8}>
+                    <h1 className="fw-bold text-primary mb-1">Chào mừng, {user?.fullName || user?.username}!</h1>
+                    <p className="text-muted fs-5">Mã bệnh nhân: <Badge bg="light" text="dark" className="border">{user?.patientCode || 'N/A'}</Badge></p>
                 </Col>
-                <Col md={6} lg={4}>
-                    <Card className="shadow h-100 text-center">
-                        <Card.Body>
-                            <FaCalendarPlus size={60} className="text-primary mb-3" />
-                            <Card.Title>Đặt lịch hẹn</Card.Title>
-                            <Card.Text>Đặt lịch khám với bác sĩ theo chuyên khoa.</Card.Text>
-                            <Link to="/booking">
-                                <Button variant="primary" className="mt-3">Đặt lịch ngay</Button>
-                            </Link>
-                        </Card.Body>
-                    </Card>
-                </Col>
-                <Col md={6} lg={4}>
-                    <Card className="shadow h-100 text-center">
-                        <Card.Body>
-                            <FaCalendarCheck size={60} className="text-primary mb-3" />
-                            <Card.Title>Lịch hẹn đã đặt</Card.Title>
-                            <Card.Text>Xem và quản lý các lịch hẹn đã đặt của bạn.</Card.Text>
-                            <Link to="/my-appointments">
-                                <Button variant="primary" className="mt-3">Xem lịch hẹn</Button>
-                            </Link>
-                        </Card.Body>
-                    </Card>
-                </Col>
-                <Col md={6} lg={4}>
-                    <Card className="shadow h-100 text-center">
-                        <Card.Body>
-                            <FaFileMedical size={60} className="text-primary mb-3" />
-                            <Card.Title>Lịch sử khám bệnh</Card.Title>
-                            <Card.Text>Tra cứu kết quả xét nghiệm và đơn thuốc cũ.</Card.Text>
-                            <Link to="/medical-records">
-                                <Button variant="primary" className="mt-3">Xem lịch sử</Button>
-                            </Link>
-                        </Card.Body>
-                    </Card>
+                <Col md={4} className="text-md-end">
+                    <Link to="/profile/edit">
+                        <Button variant="outline-primary" className="rounded-pill px-4 fw-bold shadow-sm">
+                            <FaUserEdit className="me-2" /> CHỈNH SỬA HỒ SƠ
+                        </Button>
+                    </Link>
                 </Col>
             </Row>
+
+            <Row className="g-4 mb-5">
+                <Col md={6}>
+                    <Link to="/booking" className="text-decoration-none">
+                        <Card className="border-0 shadow-lg bg-primary text-white hover-shadow h-100">
+                            <Card.Body className="p-4">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h3 className="fw-bold mb-1">Đặt lịch khám</h3>
+                                        <p className="mb-0 opacity-75 small">Chăm sóc sức khỏe ngay hôm nay</p>
+                                    </div>
+                                    <div className="fs-1 opacity-50"><FaCalendarPlus /></div>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Link>
+                </Col>
+                <Col md={6}>
+                    <Link to="/medical-records" className="text-decoration-none">
+                        <Card className="border-0 shadow-lg bg-success text-white hover-shadow h-100">
+                            <Card.Body className="p-4">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h3 className="fw-bold mb-1">Hồ sơ bệnh án</h3>
+                                        <p className="mb-0 opacity-75 small">Quản lý hồ sơ sức khỏe điện tử</p>
+                                    </div>
+                                    <div className="fs-1 opacity-50"><FaFileMedical /></div>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Link>
+                </Col>
+            </Row>
+
+            <Card className="border-0 shadow-lg">
+                <Card.Header className="bg-white py-4 border-0 d-flex justify-content-between align-items-center">
+                    <h4 className="fw-bold mb-0 text-dark"><FaCalendarAlt className="me-2 text-primary" /> DANH SÁCH LỊCH HẸN SẮP TỚI</h4>
+                    <Button variant="link" className="text-decoration-none fw-bold" onClick={fetchMyAppointments}>Làm mới</Button>
+                </Card.Header>
+                <Card.Body className="p-0">
+                    {loading ? (
+                        <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
+                    ) : (
+                        <div className="table-responsive">
+                            <Table hover className="align-middle mb-0">
+                                <thead className="bg-light">
+                                    <tr>
+                                        <th className="ps-4 py-3">Bác sĩ / Chuyên khoa</th>
+                                        <th>Thời gian khám</th>
+                                        <th>Trạng thái</th>
+                                        <th className="text-end pe-4">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {appointments.length === 0 ? (
+                                        <tr><td colSpan="4" className="text-center py-5 text-muted">Bạn chưa có lịch hẹn nào sắp tới.</td></tr>
+                                    ) : (
+                                        appointments.map((app) => (
+                                            <tr key={app.id}>
+                                                <td className="ps-4">
+                                                    <div className="fw-bold text-dark">{app.doctorName}</div>
+                                                    <div className="small text-muted">{app.specialtyName || "Dịch vụ y tế"}</div>
+                                                </td>
+                                                <td>
+                                                    <div className="small fw-bold text-dark">{app.appointmentDate}</div>
+                                                    <div className="small text-muted">{app.appointmentTime}</div>
+                                                </td>
+                                                <td>
+                                                    <Badge bg={app.status === 'pending' || app.status === 'PENDING' ? 'warning' : 'success'} className="px-3 py-2 fw-normal">
+                                                        {app.status === 'pending' || app.status === 'PENDING' ? 'Chờ duyệt' : 'Đã xác nhận'}
+                                                    </Badge>
+                                                </td>
+                                                <td className="text-end pe-4">
+                                                    {(app.status === 'CONFIRMED' || app.status === 'confirmed') && (
+                                                        <Button 
+                                                            variant="primary" 
+                                                            size="sm" 
+                                                            disabled={paymentLoading}
+                                                            className="rounded-pill px-4 shadow-sm fw-bold border-0"
+                                                            style={{ background: 'linear-gradient(45deg, #00a8cc, #005073)' }}
+                                                            onClick={() => handlePayment(app.id)}
+                                                        >
+                                                            {paymentLoading ? <Spinner size="sm" /> : <><FaCreditCard className="me-2" /> THANH TOÁN</>}
+                                                        </Button>
+                                                    )}
+                                                    {(app.status === 'pending' || app.status === 'PENDING') && (
+                                                        <span className="text-muted small italic">Chờ bác sĩ duyệt để thanh toán</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Table>
+                        </div>
+                    )}
+                </Card.Body>
+            </Card>
         </Container>
     );
 };

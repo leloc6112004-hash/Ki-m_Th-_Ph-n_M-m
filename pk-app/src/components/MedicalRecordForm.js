@@ -1,163 +1,177 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Container, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Container, Alert, Spinner, Card, Row, Col, Badge } from 'react-bootstrap';
 import { authApis, endpoints } from '../config/Apis';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { FaFileMedical, FaUserInjured, FaStethoscope, FaClipboardList, FaArrowRight, FaCalendarCheck } from 'react-icons/fa';
 
 const MedicalRecordForm = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    
+    // Data states
     const [appointments, setAppointments] = useState([]);
-    const [appointmentId, setAppointmentId] = useState('');
+    const [patients, setPatients] = useState([]);
+    
+    // Form states
+    const [selectedApp, setSelectedApp] = useState(location.state?.appointment || null);
+    const [autoPatientId, setAutoPatientId] = useState('');
     const [diagnosis, setDiagnosis] = useState('');
     const [symptoms, setSymptoms] = useState('');
-    const [treatmentPlan, setTreatmentPlan] = useState('');
+    
+    // UI states
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [message, setMessage] = useState(null);
 
     useEffect(() => {
-        const fetchAppointments = async () => {
+        const fetchInitialData = async () => {
             try {
-                // Lấy danh sách các lịch hẹn của bác sĩ
-                const res = await authApis().get(endpoints['doctor-appointments']);
-                setAppointments(res.data);
+                // Tải cả lịch hẹn và danh sách bệnh nhân để tra cứu ID
+                const [aRes, pRes] = await Promise.all([
+                    authApis().get(endpoints['my-appointments-doctor']),
+                    authApis().get(endpoints['doctor-patients'])
+                ]);
+
+                if (aRes.data.status === 200) {
+                    const confirmedApps = aRes.data.data.filter(app => 
+                        app.status === 'confirmed' || app.status === 'CONFIRMED'
+                    );
+                    setAppointments(confirmedApps);
+                }
+                if (pRes.data.status === 200) setPatients(pRes.data.data);
+
             } catch (err) {
-                console.error("Lỗi khi tải danh sách lịch hẹn:", err);
-                setMessage({ type: 'danger', text: 'Không thể tải danh sách lịch hẹn. Vui lòng thử lại sau.' });
+                console.error(err);
+                setMessage({ type: 'danger', text: 'Không thể tải dữ liệu.' });
             } finally {
                 setLoading(false);
             }
         };
-        fetchAppointments();
+        fetchInitialData();
     }, []);
+
+    // Tự động tìm Patient ID khi thay đổi Lịch hẹn
+    useEffect(() => {
+        if (selectedApp && patients.length > 0) {
+            // Tìm bệnh nhân có tên khớp với tên trong lịch hẹn
+            const p = patients.find(p => p.fullName === selectedApp.patientName);
+            if (p) {
+                setAutoPatientId(p.id);
+            } else {
+                setAutoPatientId('');
+            }
+        }
+    }, [selectedApp, patients]);
+
+    const handleSelectApp = (e) => {
+        const appId = e.target.value;
+        const app = appointments.find(a => a.id.toString() === appId.toString());
+        setSelectedApp(app);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        setMessage(null);
-        
-        // Tìm lịch hẹn đã chọn từ danh sách appointments
-        const selectedAppointment = appointments.find(a => a.id.toString() === appointmentId);
-        
-        // Kiểm tra các trường bắt buộc trước khi gửi
-        if (!selectedAppointment || !diagnosis || !symptoms || !treatmentPlan) {
-            setMessage({ type: 'danger', text: 'Vui lòng điền đầy đủ các thông tin bắt buộc và chọn một lịch hẹn.' });
-            setIsSubmitting(false);
+        if (!selectedApp || !autoPatientId) {
+            setMessage({ type: 'danger', text: 'Lỗi: Không tìm thấy mã định danh bệnh nhân. Vui lòng kiểm tra lại tên bệnh nhân.' });
             return;
         }
 
-        // --- ĐÂY LÀ PHẦN ĐÃ ĐƯỢC SỬA ĐỂ XỬ LÝ LỖI patientId ---
-        // Lấy patientId từ lịch hẹn đã chọn.
-        const patientIdToSend = selectedAppointment.patientId;
-
-        // Nếu patientId không tồn tại trong dữ liệu API, hiển thị lỗi và dừng lại.
-        if (patientIdToSend === undefined) {
-             setMessage({ type: 'danger', text: 'Thông tin bệnh nhân không hợp lệ. Vui lòng kiểm tra lại dữ liệu lịch hẹn.' });
-             setIsSubmitting(false);
-             return;
-        }
-        // --- KẾT THÚC PHẦN SỬA ---
-
         try {
+            setIsSubmitting(true);
             const medicalRecordData = {
-                // Gửi patientId đã được kiểm tra
-                patientId: patientIdToSend, 
-                appointmentId: parseInt(appointmentId), 
-                diagnosis,
-                symptoms,
-                treatmentPlan
+                patientId: parseInt(autoPatientId), // Lấy ID đã tra cứu được
+                appointmentId: parseInt(selectedApp.id),
+                diagnosis: diagnosis,
+                symptoms: symptoms
             };
+
+            const res = await authApis().post(endpoints['create-medical-record'], medicalRecordData);
             
-            const res = await authApis().post(endpoints['create-medical-records'], medicalRecordData);
-            
-            if (res.status === 201) {
-                setMessage({ type: 'success', text: 'Hồ sơ bệnh án đã được tạo thành công!' });
-                setAppointmentId('');
-                setDiagnosis('');
-                setSymptoms('');
-                setTreatmentPlan('');
+            if (res.data.status === 200 || res.status === 201) {
+                setMessage({ type: 'success', text: 'Tạo hồ sơ bệnh án thành công!' });
+                setTimeout(() => {
+                    navigate("/prescriptions", { 
+                        state: { 
+                            patientId: autoPatientId,
+                            patientName: selectedApp.patientName 
+                        } 
+                    });
+                }, 1500);
             }
         } catch (err) {
-            console.error("Lỗi khi tạo hồ sơ:", err);
-            setMessage({ type: 'danger', text: 'Đã xảy ra lỗi khi tạo hồ sơ. Vui lòng kiểm tra lại.' });
+            setMessage({ type: 'danger', text: err.response?.data?.message || 'Lỗi server (400 Bad Request).' });
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (loading) {
-        return (
-            <Container className="text-center my-5">
-                <Spinner animation="border" />
-                <p className="mt-2">Đang tải danh sách lịch hẹn...</p>
-            </Container>
-        );
-    }
+    if (loading) return <Container className="text-center my-5"><Spinner animation="border" variant="primary" /></Container>;
 
     return (
-        <Container className="my-5">
-            <h1 className="text-center mb-4">Tạo Hồ Sơ Bệnh Án Mới</h1>
-            {message && <Alert variant={message.type}>{message.text}</Alert>}
+        <Container className="py-5">
+            <Row className="justify-content-center">
+                <Col lg={8}>
+                    <Card className="border-0 shadow-lg">
+                        <Card.Header className="bg-primary text-white py-4 border-0">
+                            <h3 className="mb-0 fw-bold text-center"><FaFileMedical className="me-2" /> KHÁM BỆNH & LẬP HỒ SƠ</h3>
+                        </Card.Header>
+                        <Card.Body className="p-4 p-md-5">
+                            {message && <Alert variant={message.type} dismissible onClose={() => setMessage(null)}>{message.text}</Alert>}
 
-            <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                    <Form.Label><span className="fw-bold">Chọn Lịch Hẹn:</span></Form.Label>
-                    <Form.Control
-                        as="select"
-                        value={appointmentId}
-                        onChange={(e) => setAppointmentId(e.target.value)}
-                        required
-                    >
-                        <option value="">-- Chọn lịch hẹn --</option>
-                        {appointments.map(a => (
-                            <option key={a.id} value={a.id}>
-                                {a.patientName} - {a.appointmentDate} lúc {a.appointmentTime}
-                            </option>
-                        ))}
-                    </Form.Control>
-                </Form.Group>
-                
-                <Form.Group className="mb-3">
-                    <Form.Label><span className="fw-bold">Chẩn Đoán:</span></Form.Label>
-                    <Form.Control
-                        as="textarea"
-                        rows={3}
-                        value={diagnosis}
-                        onChange={(e) => setDiagnosis(e.target.value)}
-                        required
-                    />
-                </Form.Group>
-                
-                <Form.Group className="mb-3">
-                    <Form.Label><span className="fw-bold">Triệu Chứng:</span></Form.Label>
-                    <Form.Control
-                        as="textarea"
-                        rows={3}
-                        value={symptoms}
-                        onChange={(e) => setSymptoms(e.target.value)}
-                        required
-                    />
-                </Form.Group>
-                
-                <Form.Group className="mb-3">
-                    <Form.Label><span className="fw-bold">Phương Pháp Điều Trị:</span></Form.Label>
-                    <Form.Control
-                        as="textarea"
-                        rows={3}
-                        value={treatmentPlan}
-                        onChange={(e) => setTreatmentPlan(e.target.value)}
-                        required
-                    />
-                </Form.Group>
-                
-                <Button variant="primary" type="submit" className="w-100" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                        <>
-                            <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2" />
-                            Đang tạo...
-                        </>
-                    ) : (
-                        'Tạo Hồ Sơ Bệnh Án'
-                    )}
-                </Button>
-            </Form>
+                            <Form onSubmit={handleSubmit}>
+                                <Form.Group className="mb-4">
+                                    <Form.Label className="fw-bold text-primary"><FaCalendarCheck className="me-2" />Chọn Lịch Hẹn Đang Khám</Form.Label>
+                                    <Form.Select
+                                        className="bg-light border-0 py-3 shadow-sm"
+                                        value={selectedApp?.id || ''}
+                                        onChange={handleSelectApp}
+                                        required
+                                    >
+                                        <option value="">-- Chọn lịch hẹn để lấy thông tin tự động --</option>
+                                        {appointments.map(a => (
+                                            <option key={a.id} value={a.id}>
+                                                {a.patientName} - {a.appointmentDate}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                </Form.Group>
+
+                                {selectedApp && (
+                                    <div className="bg-info bg-opacity-10 p-3 rounded mb-4 border-start border-4 border-info">
+                                        <Row className="align-items-center">
+                                            <Col xs={8}>
+                                                <small className="text-muted text-uppercase fw-bold">Thông tin bệnh nhân:</small>
+                                                <h5 className="mb-0 fw-bold">{selectedApp.patientName}</h5>
+                                            </Col>
+                                            <Col xs={4} className="text-end">
+                                                <Badge bg={autoPatientId ? "success" : "danger"} className="p-2">
+                                                    {autoPatientId ? `Mã BN: #${autoPatientId}` : "Không tìm thấy mã!"}
+                                                </Badge>
+                                            </Col>
+                                        </Row>
+                                    </div>
+                                )}
+
+                                <Form.Group className="mb-4">
+                                    <Form.Label className="fw-bold"><FaClipboardList className="me-2 text-danger" />Triệu chứng</Form.Label>
+                                    <Form.Control as="textarea" rows={3} className="bg-light border-0 shadow-sm" placeholder="Mô tả triệu chứng..." value={symptoms} onChange={(e) => setSymptoms(e.target.value)} required />
+                                </Form.Group>
+
+                                <Form.Group className="mb-4">
+                                    <Form.Label className="fw-bold"><FaStethoscope className="me-2 text-success" />Chẩn đoán</Form.Label>
+                                    <Form.Control as="textarea" rows={3} className="bg-light border-0 shadow-sm" placeholder="Nhập kết luận bệnh lý..." value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} required />
+                                </Form.Group>
+                                
+                                <div className="d-grid mt-5">
+                                    <Button variant="primary" type="submit" size="lg" className="rounded-pill fw-bold py-3 shadow" disabled={isSubmitting || !autoPatientId}>
+                                        {isSubmitting ? <Spinner size="sm" /> : <><FaArrowRight className="me-2" /> LƯU HỒ SƠ & SANG KÊ ĐƠN</>}
+                                    </Button>
+                                </div>
+                            </Form>
+                        </Card.Body>
+                    </Card>
+                </Col>
+            </Row>
         </Container>
     );
 };

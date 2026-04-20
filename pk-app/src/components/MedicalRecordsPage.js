@@ -1,157 +1,150 @@
-// src/components/MedicalRecordsPage.js
-
-import React, { useEffect, useState } from 'react';
-import { Alert, Card, Table, ListGroup, Tab, Tabs } from 'react-bootstrap';
-import cookie from 'react-cookies';
+import React, { useEffect, useState, useContext } from 'react';
+import { Container, Table, Button, Modal, Badge, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
 import { authApis, endpoints } from '../config/Apis';
-import MySpinner from './layout/MySpinner';
-import { format } from 'date-fns';
+import { MyUserContext } from '../config/MyContexts';
+import { FaFileMedical, FaPrescriptionBottleAlt, FaCalendarAlt, FaUserMd, FaSearchPlus, FaClipboardCheck } from 'react-icons/fa';
 
 const MedicalRecordsPage = () => {
-    const [medicalRecords, setMedicalRecords] = useState([]);
-    const [patient, setPatient] = useState(null);
+    const [user] = useContext(MyUserContext);
+    const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState('');
-    const [variant, setVariant] = useState('');
+    const [selectedRecord, setSelectedRecord] = useState(null);
+    const [showModal, setShowModal] = useState(false);
 
     useEffect(() => {
-        const fetchPatientAndRecords = async () => {
-            const user = cookie.load('user');
-            const token = cookie.load('token');
-
-            if (!user || user.role !== 'PATIENT' || !token) {
-                setMessage('Bạn không có quyền truy cập vào hồ sơ này.');
-                setVariant('warning');
-                setLoading(false);
-                return;
-            }
-
-            try {
-                // BƯỚC 1: Gọi API backend để lấy thông tin bệnh nhân
-                const patientRes = await authApis().get(endpoints['get_current_patient_info']);
-                const patientData = patientRes.data;
-
-                if (!patientData || !patientData.id) {
-                    setMessage('Không tìm thấy thông tin bệnh nhân của bạn.');
-                    setVariant('info');
+        const fetchRecords = async () => {
+            const patientId = user?.id || user?.patientId; 
+            if (patientId) {
+                try {
+                    setLoading(true);
+                    const res = await authApis().get(endpoints['medical-records-patient'](patientId));
+                    if (res.data.status === 200) {
+                        setRecords(res.data.data || []);
+                    }
+                } catch (err) {
+                    console.error("Lỗi tải bệnh án:", err);
+                } finally {
                     setLoading(false);
-                    return;
                 }
-                
-                setPatient(patientData);
-                const patientId = patientData.id;
-
-                // BƯỚC 2: Dùng patientId để lấy hồ sơ y tế
-                const recordsRes = await authApis().get(endpoints['medical-records'](patientId));
-                
-                if (Array.isArray(recordsRes.data)) {
-                    setMedicalRecords(recordsRes.data);
-                } else {
-                    console.error("API did not return an array:", recordsRes.data);
-                    setMessage('Dữ liệu trả về từ API không phải là mảng.');
-                    setVariant('danger');
-                }
-            } catch (ex) {
-                console.error("Lỗi khi tải dữ liệu:", ex);
-                if (ex.response && ex.response.status === 401) {
-                    setMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-                } else if (ex.response && ex.response.status === 404) {
-                    setMessage('Bạn chưa có hồ sơ khám bệnh nào.');
-                } else {
-                    setMessage('Có lỗi xảy ra khi tải hồ sơ khám bệnh.');
-                }
-                setVariant('danger');
-            } finally {
-                setLoading(false);
             }
         };
+        fetchRecords();
+    }, [user]);
 
-        fetchPatientAndRecords();
-    }, []);
+    const handleShowDetails = (record) => {
+        setSelectedRecord(record);
+        setShowModal(true);
+    };
 
-    if (loading) {
-        return <MySpinner />;
-    }
-
-    if (message) {
-        return <Alert variant={variant}>{message}</Alert>;
-    }
-    
-    if (!patient) {
-        return <Alert variant="danger">Không tìm thấy thông tin bệnh nhân.</Alert>;
-    }
+    if (loading) return <Container className="text-center my-5"><Spinner animation="border" variant="primary" /></Container>;
 
     return (
-        <div className="container mt-5">
-            <h1 className="text-center text-primary mb-4">Hồ sơ khám bệnh của {patient.user.fullName}</h1>
-            {medicalRecords.length > 0 ? (
-                <Tabs defaultActiveKey="history" id="medical-records-tabs" className="mb-3">
-                    <Tab eventKey="history" title="Lịch sử khám bệnh">
-                        {medicalRecords.map((record) => (
-                            <Card key={record.id} className="mb-3">
-                                <Card.Header as="h5">
-                                    Ngày khám: {record.examDate ? format(new Date(record.examDate), 'dd/MM/yyyy') : 'Đang cập nhật'}
-                                </Card.Header>
+        <Container className="py-5">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <h2 className="fw-bold text-primary"><FaFileMedical className="me-2" /> HỒ SƠ SỨC KHỎE CỦA BẠN</h2>
+                <Badge bg="primary" pill className="px-3 py-2 shadow-sm">Tổng cộng: {records.length}</Badge>
+            </div>
+
+            {records.length === 0 ? (
+                <Card className="border-0 shadow-sm text-center py-5">
+                    <Card.Body>
+                        <FaFileMedical size={60} className="text-muted opacity-25 mb-3" />
+                        <h4 className="text-muted">Bạn chưa có hồ sơ khám bệnh nào.</h4>
+                    </Card.Body>
+                </Card>
+            ) : (
+                <Row className="g-4">
+                    {records.map((record) => (
+                        <Col md={6} lg={4} key={record.id}>
+                            <Card className="border-0 shadow-sm h-100 transition hover-up border-top border-4 border-primary">
                                 <Card.Body>
-                                    <ListGroup variant="flush">
-                                        <ListGroup.Item>
-                                            <strong>Bác sĩ:</strong> {record.doctorName || 'Đang cập nhật'}
-                                        </ListGroup.Item>
-                                        <ListGroup.Item>
-                                            <strong>Bệnh nhân:</strong> {record.patientName || 'Đang cập nhật'}
-                                        </ListGroup.Item>
-                                        <ListGroup.Item>
-                                            <strong>Chẩn đoán:</strong> {record.diagnosis || 'Đang cập nhật'}
-                                        </ListGroup.Item>
-                                        <ListGroup.Item>
-                                            <strong>Triệu chứng:</strong> {record.symptoms || 'Đang cập nhật'}
-                                        </ListGroup.Item>
-                                        <ListGroup.Item>
-                                            <strong>Phương pháp điều trị:</strong> {record.treatmentPlan || 'Đang cập nhật'}
-                                        </ListGroup.Item>
-                                    </ListGroup>
+                                    <div className="d-flex justify-content-between mb-3">
+                                        <div className="text-muted small fw-bold">
+                                            <FaCalendarAlt className="me-1 text-primary" /> {new Date(record.createdDate).toLocaleDateString('vi-VN')}
+                                        </div>
+                                        <Badge bg="success">Hoàn thành</Badge>
+                                    </div>
+                                    <h5 className="fw-bold text-dark mb-2 text-truncate">{record.diagnosis || "Khám bệnh"}</h5>
+                                    <p className="text-muted small mb-4">Mã số hồ sơ: <strong>#MR-{record.id}</strong></p>
+                                    <Button variant="primary" className="w-100 rounded-pill fw-bold shadow-sm" onClick={() => handleShowDetails(record)}>
+                                        <FaSearchPlus className="me-2" /> XEM CHI TIẾT
+                                    </Button>
                                 </Card.Body>
                             </Card>
-                        ))}
-                    </Tab>
-                    <Tab eventKey="prescriptions" title="Đơn thuốc">
-                        {medicalRecords.map((record) => (
-                            record.prescriptions && record.prescriptions.length > 0 ? (
-                                <Card key={record.id} className="mb-3">
-                                    <Card.Header as="h5">
-                                        Đơn thuốc ngày: {record.examDate ? format(new Date(record.examDate), 'dd/MM/yyyy') : 'Đang cập nhật'}
-                                    </Card.Header>
-                                    <Card.Body>
-                                        <Table striped bordered hover>
-                                            <thead>
-                                                <tr>
-                                                    <th>Tên thuốc</th>
-                                                    <th>Liều lượng</th>
-                                                    <th>Hướng dẫn sử dụng</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {record.prescriptions.map((p, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>{p.medicineName || 'Đang cập nhật'}</td>
-                                                        <td>{p.quantity || 'Đang cập nhật'}</td>
-                                                        <td>{p.instruction || 'Đang cập nhật'}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </Table>
-                                    </Card.Body>
-                                </Card>
-                            ) : null
-                        ))}
-                    </Tab>
-                </Tabs>
-            ) : (
-                <Alert variant="info">
-                    Bạn chưa có hồ sơ khám bệnh nào.
-                </Alert>
+                        </Col>
+                    ))}
+                </Row>
             )}
-        </div>
+
+            <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+                <Modal.Header closeButton className="bg-light border-0 px-4 pt-4">
+                    <Modal.Title className="fw-bold text-primary">KẾT QUẢ KHÁM CHI TIẾT</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-4">
+                    {selectedRecord && (
+                        <>
+                            <div className="bg-white border rounded p-3 mb-4 shadow-sm">
+                                <Row className="gy-3 text-center text-sm-start">
+                                    <Col sm={6} className="border-sm-end">
+                                        <small className="text-muted d-block fw-bold text-uppercase">Bệnh nhân</small>
+                                        <span className="fw-bold text-dark fs-5">{selectedRecord.patientName}</span>
+                                    </Col>
+                                    <Col sm={6} className="ps-sm-4">
+                                        <small className="text-muted d-block fw-bold text-uppercase">Ngày thực hiện</small>
+                                        <span className="fw-bold text-dark fs-5">{new Date(selectedRecord.createdDate).toLocaleDateString('vi-VN')}</span>
+                                    </Col>
+                                </Row>
+                            </div>
+
+                            <div className="mb-4">
+                                <h6 className="fw-bold text-dark border-start border-4 border-primary ps-2 mb-3">CHẨN ĐOÁN & ĐIỀU TRỊ</h6>
+                                <Card className="bg-light border-0 p-3 shadow-none">
+                                    <p className="mb-2"><strong>Triệu chứng:</strong> {selectedRecord.symptoms}</p>
+                                    <p className="mb-2"><strong>Chẩn đoán:</strong> <span className="text-primary fw-bold">{selectedRecord.diagnosis}</span></p>
+                                    {selectedRecord.treatmentPlan && (
+                                        <p className="mb-0 border-top pt-2 mt-2"><strong>Kế hoạch điều trị:</strong> {selectedRecord.treatmentPlan}</p>
+                                    )}
+                                </Card>
+                            </div>
+
+                            <h6 className="fw-bold text-dark border-start border-4 border-danger ps-2 mb-3">
+                                <FaPrescriptionBottleAlt className="text-danger me-2" /> ĐƠN THUỐC ĐÃ KÊ
+                            </h6>
+                            
+                            {selectedRecord.prescriptionItems && selectedRecord.prescriptionItems.length > 0 ? (
+                                <div className="border rounded overflow-hidden shadow-sm">
+                                    <Table hover responsive borderless className="align-middle mb-0">
+                                        <thead className="table-light">
+                                            <tr className="small text-muted text-uppercase">
+                                                <th className="ps-3">Tên thuốc</th>
+                                                <th>Số lượng / Liều</th>
+                                                <th>Hướng dẫn sử dụng</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedRecord.prescriptionItems.map((m, idx) => (
+                                                <tr key={idx} className="border-bottom">
+                                                    <td className="ps-3 fw-bold text-primary">{m.medicineName}</td>
+                                                    <td><Badge bg="info" className="fw-normal">{m.quantity}</Badge></td>
+                                                    <td className="small text-muted italic">{m.instruction || "Dùng theo chỉ định của bác sĩ"}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-4 bg-light rounded-3 text-muted small border border-dashed">
+                                    Không có thông tin đơn thuốc chi tiết trong hồ sơ này.
+                                </div>
+                            )}
+                        </>
+                    )}
+                </Modal.Body>
+                <Modal.Footer className="border-0 px-4 pb-4">
+                    <Button variant="secondary" className="rounded-pill px-4 fw-bold shadow-sm" onClick={() => setShowModal(false)}>Đóng cửa sổ</Button>
+                </Modal.Footer>
+            </Modal>
+        </Container>
     );
 };
 

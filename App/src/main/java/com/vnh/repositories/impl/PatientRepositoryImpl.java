@@ -1,27 +1,15 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.vnh.repositories.impl;
 
-import com.vnh.pojo.MedicalRecords;
 import com.vnh.pojo.Patients;
 import com.vnh.repositories.PatientRepository;
-
+import java.util.List;
+import jakarta.persistence.Query;
 import org.hibernate.Session;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import org.hibernate.query.Query;
-
-/**
- *
- * @author Nguyen Hung
- */
 @Repository
 @Transactional
 public class PatientRepositoryImpl implements PatientRepository {
@@ -30,48 +18,45 @@ public class PatientRepositoryImpl implements PatientRepository {
     private LocalSessionFactoryBean sessionFactory;
 
     @Override
-    public Patients getPatientById(int id) {
-        Session session = this.sessionFactory.getObject().getCurrentSession();
-        return session.find(Patients.class, id);
+    public List<Patients> getPatients() {
+        Session s = this.sessionFactory.getObject().getCurrentSession();
+        // JOIN FETCH User để lấy Họ tên, Avatar...
+        Query q = s.createQuery("FROM Patients p JOIN FETCH p.userId", Patients.class);
+        return q.getResultList();
     }
 
     @Override
-    public Patients getPatientByUserId(int userId) {
-        Session session = this.sessionFactory.getObject().getCurrentSession();
-        Query q = session.createQuery("FROM Patients p WHERE p.userId.id = :userId", Patients.class);
-
-        q.setParameter("userId", userId);
-
-        // Sử dụng getResultList() để xử lý cả trường hợp không có kết quả và nhiều hơn một kết quả
-        List<Patients> results = q.getResultList();
-
-        if (results.isEmpty()) {
-            // Trả về null nếu không tìm thấy bệnh nhân nào
+    public Patients getPatientById(int id) {
+        Session s = this.sessionFactory.getObject().getCurrentSession();
+        try {
+            return s.createQuery("FROM Patients p JOIN FETCH p.userId WHERE p.id = :id", Patients.class)
+                    .setParameter("id", id)
+                    .getSingleResult();
+        } catch (Exception e) {
             return null;
-        } else {
-            // Trả về bệnh nhân đầu tiên, giả định rằng userId là duy nhất
-            return results.get(0);
         }
     }
 
     @Override
-    public Patients addPatient(Patients p) {
+    public void addPatient(Patients p) {
         Session s = this.sessionFactory.getObject().getCurrentSession();
         s.persist(p);
-
-        return p;
     }
 
     @Override
     public List<Patients> findByDoctorId(int doctorId) {
-        Session session = this.sessionFactory.getObject().getCurrentSession();
-
-        // Sửa lại truy vấn HQL để sử dụng đúng tên thuộc tính là `patientId` và `doctorId`
-        Query<Patients> query = session.createQuery(
-                "SELECT DISTINCT p FROM Appointments a JOIN a.patientId p JOIN FETCH p.userId WHERE a.doctorId.id = :doctorId", Patients.class);
-        query.setParameter("doctorId", doctorId);
-
-        return query.getResultList();
+        Session s = this.sessionFactory.getObject().getCurrentSession();
+        // Lấy danh sách bệnh nhân đã từng khám với bác sĩ này
+        String hql = "SELECT DISTINCT a.patientId FROM Appointments a " +
+                     "JOIN FETCH a.patientId.userId " +
+                     "WHERE a.doctorId.id = :docId";
+        return s.createQuery(hql, Patients.class)
+                .setParameter("docId", doctorId)
+                .getResultList();
     }
 
+    @Override
+    public Patients getPatientByUserId(int userId) {
+        return this.getPatientById(userId);
+    }
 }

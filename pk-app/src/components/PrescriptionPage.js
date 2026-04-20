@@ -1,111 +1,91 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Form, Button, Row, Col, Card, ListGroup, Alert, Spinner } from 'react-bootstrap';
+import { Container, Form, Button, Row, Col, Card, Alert, Spinner, Badge, Table } from 'react-bootstrap';
 import { authApis, endpoints } from '../config/Apis';
-import cookie from 'react-cookies';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { FaPills, FaTrash, FaFilePrescription, FaUserMd, FaClipboardList, FaClock } from 'react-icons/fa';
 
 const PrescriptionPage = () => {
-    const [patients, setPatients] = useState([]);
-    const [medicalRecords, setMedicalRecords] = useState([]);
+    const location = useLocation();
+    const navigate = useNavigate();
+    
     const [medicines, setMedicines] = useState([]);
-    const [selectedPatientId, setSelectedPatientId] = useState('');
-    const [selectedMedicalRecordId, setSelectedMedicalRecordId] = useState(''); // Thêm state mới
+    const [medicalRecords, setMedicalRecords] = useState([]);
+    
+    // State form
+    const [selectedRecord, setSelectedRecord] = useState(null);
     const [prescriptionItems, setPrescriptionItems] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [submitStatus, setSubmitStatus] = useState(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
+    
+    // State nhập thuốc
     const [currentMedicine, setCurrentMedicine] = useState('');
     const [dosage, setDosage] = useState('');
     const [frequency, setFrequency] = useState('');
     const [instructions, setInstructions] = useState('');
 
+    const [loading, setLoading] = useState(true);
+    const [loadingRecords, setLoadingRecords] = useState(false);
+    const [error, setError] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     useEffect(() => {
-        const fetchData = async () => {
+        const init = async () => {
             try {
-                const api = authApis();
-                const [patientsRes, medicinesRes] = await Promise.all([
-                    api.get(endpoints['doctor-patients']),
-                    api.get(endpoints['medicines'])
-                ]);
-                
-                setPatients(patientsRes.data || []);
-                setMedicines(medicinesRes.data || []);
+                // Tải thuốc
+                const res = await authApis().get(endpoints['medicines']);
+                if (res.data.status === 200) setMedicines(res.data.data);
+
+                // Nếu có patientId từ trang bệnh án chuyển sang, tự động tải hồ sơ bệnh nhân đó
+                if (location.state?.patientId) {
+                    await fetchRecords(location.state.patientId);
+                }
             } catch (err) {
-                console.error("Lỗi khi tải dữ liệu:", err);
-                setError("Không thể tải dữ liệu. Vui lòng thử lại sau.");
+                setError("Lỗi tải dữ liệu.");
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
+        init();
     }, []);
 
-    // Lấy hồ sơ bệnh án khi một bệnh nhân được chọn
-    useEffect(() => {
-        const fetchMedicalRecords = async () => {
-            if (selectedPatientId) {
-                try {
-                    const api = authApis();
-                    const res = await api.get(`${endpoints['medical-records-by-patient']}/${selectedPatientId}`);
-                    setMedicalRecords(res.data);
-                } catch (err) {
-                    console.error("Lỗi khi tải hồ sơ bệnh án:", err);
-                    setError("Không thể tải hồ sơ bệnh án của bệnh nhân này.");
-                }
-            } else {
-                setMedicalRecords([]);
-                setSelectedMedicalRecordId('');
+    const fetchRecords = async (patientId) => {
+        setLoadingRecords(true);
+        try {
+            const res = await authApis().get(endpoints['medical-records-history'](patientId));
+            if (res.data.status === 200) {
+                const records = res.data.data || [];
+                setMedicalRecords(records);
+                // Tự động chọn bệnh án mới nhất (vừa tạo)
+                if (records.length > 0) setSelectedRecord(records[0]);
             }
-        };
-        fetchMedicalRecords();
-    }, [selectedPatientId]);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingRecords(false);
+        }
+    };
 
-
-    const handleAddMedicine = (e) => {
-        e.preventDefault();
+    const handleAddItem = () => {
         const medicine = medicines.find(m => m.id.toString() === currentMedicine);
-        if (medicine && dosage && frequency) {
-            setPrescriptionItems([...prescriptionItems, {
-                medicineId: medicine.id,
-                name: medicine.name,
-                dosage,
-                frequency,
-                instructions
-            }]);
-            setCurrentMedicine('');
-            setDosage('');
-            setFrequency('');
-            setInstructions('');
-        } else {
-            setError("Vui lòng điền đầy đủ thông tin thuốc.");
-        }
+        if (!medicine || !dosage || !frequency) return;
+        setPrescriptionItems([...prescriptionItems, {
+            medicineId: parseInt(medicine.id),
+            name: medicine.name,
+            unit: medicine.unit,
+            dosage, frequency, instructions
+        }]);
+        setCurrentMedicine(''); setDosage(''); setFrequency(''); setInstructions('');
     };
 
-    const handleRemoveMedicine = (index) => {
-        setPrescriptionItems(prescriptionItems.filter((_, i) => i !== index));
-    };
-
-    const handleSubmit = async (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        setSubmitStatus(null);
-
-        if (!selectedMedicalRecordId) {
-            setError("Vui lòng chọn một hồ sơ bệnh án.");
-            setIsSubmitting(false);
-            return;
-        }
-        if (prescriptionItems.length === 0) {
-            setError("Đơn thuốc phải có ít nhất một loại thuốc.");
-            setIsSubmitting(false);
+        if (!selectedRecord || prescriptionItems.length === 0) {
+            setError("Vui lòng chọn hồ sơ bệnh án và thêm thuốc.");
             return;
         }
 
         try {
-            const api = authApis();
-            const prescriptionData = {
-                medicalRecordId: parseInt(selectedMedicalRecordId), // Gửi ID hồ sơ bệnh án chính xác
+            setIsSubmitting(true);
+            const requestBody = {
+                medicalRecordId: parseInt(selectedRecord.id),
                 medicines: prescriptionItems.map(item => ({
                     medicineId: item.medicineId,
                     dosage: item.dosage,
@@ -113,164 +93,104 @@ const PrescriptionPage = () => {
                     instructions: item.instructions
                 }))
             };
-
-            const res = await api.post(endpoints['prescriptions'], prescriptionData);
-            
+            const res = await authApis().post(endpoints['create-prescription'], requestBody);
             if (res.status === 201) {
-                setSubmitStatus({ type: 'success', message: 'Đơn thuốc đã được kê thành công!' });
-                setSelectedPatientId('');
-                setSelectedMedicalRecordId('');
-                setPrescriptionItems([]);
+                alert("Kê đơn thành công!");
+                navigate("/doctors/my-appointments");
             }
         } catch (err) {
-            console.error("Lỗi khi gửi đơn thuốc:", err);
-            setSubmitStatus({ type: 'error', message: "Đã xảy ra lỗi khi kê đơn. Vui lòng thử lại." });
+            setError(err.response?.data || "Lỗi khi lưu đơn thuốc.");
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (loading) {
-        return <div className="text-center mt-5"><Spinner animation="border" /></div>;
-    }
+    if (loading) return <Container className="text-center my-5"><Spinner animation="border" variant="primary" /></Container>;
 
     return (
-        <Container className="my-5">
-            <h1 className="text-center mb-4 text-primary">Kê Đơn Thuốc</h1>
+        <Container className="py-5">
+            <div className="mb-4">
+                <h2 className="fw-bold text-dark"><FaFilePrescription className="text-primary me-2" /> KÊ ĐƠN THUỐC</h2>
+                {location.state?.patientName && <Badge bg="info" className="p-2 mt-2">Đang kê đơn cho: {location.state.patientName}</Badge>}
+            </div>
 
-            {submitStatus && <Alert variant={submitStatus.type === 'success' ? 'success' : 'danger'} className="mb-4">{submitStatus.message}</Alert>}
-            {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
+            {error && <Alert variant="danger" dismissible onClose={() => setError(null)}>{error}</Alert>}
 
-            <Form onSubmit={handleSubmit}>
-                <Form.Group controlId="selectPatient" className="mb-4">
-                    <Form.Label><span className="fw-bold">Chọn Bệnh Nhân:</span></Form.Label>
-                    <Form.Control
-                        as="select"
-                        value={selectedPatientId}
-                        onChange={(e) => setSelectedPatientId(e.target.value)}
-                    >
-                        <option value="">-- Chọn bệnh nhân --</option>
-                        {patients.filter(p => p && p.userId).map(p => (
-                            <option key={p.id} value={p.id}>{p.userId.fullName}</option>
-                        ))}
-                    </Form.Control>
-                </Form.Group>
-
-                {selectedPatientId && (
-                    <Form.Group controlId="selectMedicalRecord" className="mb-4">
-                        <Form.Label><span className="fw-bold">Chọn Hồ Sơ Bệnh Án:</span></Form.Label>
-                        <Form.Control
-                            as="select"
-                            value={selectedMedicalRecordId}
-                            onChange={(e) => setSelectedMedicalRecordId(e.target.value)}
-                        >
-                            <option value="">-- Chọn hồ sơ --</option>
-                            {medicalRecords.map(record => (
-                                <option key={record.id} value={record.id}>
-                                    Ngày khám: {new Date(record.createdAt).toLocaleDateString()} - Triệu chứng: {record.symptoms}
-                                </option>
-                            ))}
-                        </Form.Control>
-                    </Form.Group>
-                )}
-                
-                {selectedMedicalRecordId && (
-                    <>
-                        {/* Các trường form để thêm thuốc */}
-                        {/* ... (Đoạn mã form thuốc của bạn) ... */}
-                        
-                        <Card className="p-4 mb-4">
-                            <h4 className="mb-3 text-success">Thông tin đơn thuốc</h4>
-                            <Row className="mb-3">
-                                <Col md={6}>
-                                    <Form.Group controlId="selectMedicine">
-                                        <Form.Label>Chọn thuốc</Form.Label>
-                                        <Form.Control
-                                            as="select"
-                                            value={currentMedicine}
-                                            onChange={(e) => setCurrentMedicine(e.target.value)}
-                                        >
-                                            <option value="">-- Chọn thuốc --</option>
-                                            {medicines.map(med => (
-                                                <option key={med.id} value={med.id}>
-                                                    {med.name} ({med.unit})
-                                                </option>
-                                            ))}
-                                        </Form.Control>
-                                    </Form.Group>
-                                </Col>
-                                <Col md={3}>
-                                    <Form.Group controlId="dosage">
-                                        <Form.Label>Liều lượng</Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            value={dosage}
-                                            onChange={(e) => setDosage(e.target.value)}
-                                            placeholder="Ví dụ: 1 viên"
-                                        />
-                                    </Form.Group>
-                                </Col>
-                                <Col md={3}>
-                                    <Form.Group controlId="frequency">
-                                        <Form.Label>Tần suất</Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            value={frequency}
-                                            onChange={(e) => setFrequency(e.target.value)}
-                                            placeholder="Ví dụ: 2 lần/ngày"
-                                        />
-                                    </Form.Group>
-                                </Col>
-                            </Row>
-                            <Form.Group controlId="instructions" className="mb-3">
-                                <Form.Label>Hướng dẫn thêm (tùy chọn)</Form.Label>
-                                <Form.Control
-                                    as="textarea"
-                                    value={instructions}
-                                    onChange={(e) => setInstructions(e.target.value)}
-                                    placeholder="Uống sau bữa ăn..."
-                                />
+            <Row className="g-4">
+                <Col lg={4}>
+                    <Card className="border-0 shadow-sm mb-4">
+                        <Card.Header className="bg-white py-3 border-0"><h6 className="mb-0 fw-bold"><FaClipboardList className="me-2 text-primary" />Hồ sơ bệnh án (Tự động)</h6></Card.Header>
+                        <Card.Body>
+                            <Form.Group className="mb-3">
+                                <Form.Label className="small text-muted">Chọn bệnh án để gán đơn thuốc:</Form.Label>
+                                <Form.Select 
+                                    className="bg-light border-0 shadow-sm"
+                                    value={selectedRecord?.id || ''}
+                                    onChange={(e) => setSelectedRecord(medicalRecords.find(r => r.id.toString() === e.target.value))}
+                                >
+                                    <option value="">-- Chọn bệnh án --</option>
+                                    {medicalRecords.map(r => (
+                                        <option key={r.id} value={r.id}>Ngày {r.createdDate}: {r.diagnosis}</option>
+                                    ))}
+                                </Form.Select>
+                                {loadingRecords && <Spinner size="sm" className="mt-2" />}
                             </Form.Group>
-                            <Button variant="outline-success" onClick={handleAddMedicine}>
-                                + Thêm thuốc
-                            </Button>
-                        </Card>
+                            {selectedRecord && (
+                                <div className="small bg-info bg-opacity-10 p-2 rounded">
+                                    <FaClock className="me-1" /> Ngày khám: <strong>{selectedRecord.createdDate}</strong>
+                                </div>
+                            )}
+                        </Card.Body>
+                    </Card>
 
-                        {/* ... Danh sách thuốc đã thêm và nút gửi ... */}
-                        <h4 className="mt-4 mb-3">Đơn thuốc đã thêm:</h4>
-                        {prescriptionItems.length > 0 ? (
-                            <ListGroup>
-                                {prescriptionItems.map((item, index) => (
-                                    <ListGroup.Item key={index} className="d-flex justify-content-between align-items-start">
-                                        <div className="ms-2 me-auto">
-                                            <div className="fw-bold">{item.name}</div>
-                                            <span className="text-muted">Liều lượng: {item.dosage}, Tần suất: {item.frequency}</span>
-                                            {item.instructions && <div className="text-secondary fst-italic">Hướng dẫn: {item.instructions}</div>}
-                                        </div>
-                                        <Button variant="danger" size="sm" onClick={() => handleRemoveMedicine(index)}>
-                                            Xóa
+                    <Card className="border-0 shadow-sm">
+                        <Card.Header className="bg-white py-3 border-0"><h6 className="mb-0 fw-bold"><FaPills className="me-2 text-primary" />Thêm thuốc</h6></Card.Header>
+                        <Card.Body>
+                            <Form.Group className="mb-3">
+                                <Form.Select className="bg-light border-0" value={currentMedicine} onChange={(e) => setCurrentMedicine(e.target.value)}>
+                                    <option value="">-- Tìm chọn thuốc --</option>
+                                    {medicines.map(m => <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>)}
+                                </Form.Select>
+                            </Form.Group>
+                            <Row className="mb-3">
+                                <Col xs={6}><Form.Control className="bg-light border-0" placeholder="Liều" value={dosage} onChange={(e) => setDosage(e.target.value)} /></Col>
+                                <Col xs={6}><Form.Control className="bg-light border-0" placeholder="Tần suất" value={frequency} onChange={(e) => setFrequency(e.target.value)} /></Col>
+                            </Row>
+                            <Form.Control as="textarea" rows={2} className="bg-light border-0 mb-3" placeholder="Ghi chú hướng dẫn..." value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+                            <Button variant="outline-primary" className="w-100 rounded-pill fw-bold" onClick={handleAddItem}>+ THÊM VÀO ĐƠN</Button>
+                        </Card.Body>
+                    </Card>
+                </Col>
+
+                <Col lg={8}>
+                    <Card className="border-0 shadow-lg h-100">
+                        <Card.Header className="bg-white py-3 border-0 d-flex justify-content-between"><h6 className="mb-0 fw-bold">CHI TIẾT ĐƠN THUỐC</h6><Badge bg="primary" pill>{prescriptionItems.length}</Badge></Card.Header>
+                        <Card.Body className="p-0">
+                            {prescriptionItems.length === 0 ? <div className="text-center py-5 text-muted opacity-50"><FaPills size={50} className="mb-3" /><p>Chưa có thuốc</p></div> : 
+                                <>
+                                    <Table hover className="align-middle mb-0">
+                                        <thead className="table-light"><tr><th className="ps-4">Tên thuốc</th><th>Liều/Tần suất</th><th className="text-end">Xóa</th></tr></thead>
+                                        <tbody>
+                                            {prescriptionItems.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="ps-4"><div className="fw-bold">{item.name}</div><div className="small text-muted fst-italic">{item.instructions}</div></td>
+                                                    <td><Badge bg="info" className="fw-normal">{item.dosage} {item.unit}</Badge><div className="small">{item.frequency}</div></td>
+                                                    <td className="text-end pe-4"><Button variant="link" className="text-danger" onClick={() => setPrescriptionItems(prescriptionItems.filter((_, i) => i !== idx))}><FaTrash /></Button></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                    <div className="p-4 bg-light border-top mt-auto">
+                                        <Button variant="success" size="lg" className="w-100 rounded-pill fw-bold shadow py-3" onClick={handleSave} disabled={isSubmitting}>
+                                            {isSubmitting ? <Spinner size="sm" /> : "XÁC NHẬN & LƯU ĐƠN THUỐC"}
                                         </Button>
-                                    </ListGroup.Item>
-                                ))}
-                            </ListGroup>
-                        ) : (
-                            <Alert variant="info" className="text-center">Chưa có thuốc nào trong đơn.</Alert>
-                        )}
-                        <div className="d-grid gap-2 mt-4">
-                            <Button variant="primary" type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? (
-                                    <>
-                                        <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2" />
-                                        Đang gửi...
-                                    </>
-                                ) : (
-                                    'Kê đơn và Gửi'
-                                )}
-                            </Button>
-                        </div>
-                    </>
-                )}
-            </Form>
+                                    </div>
+                                </>
+                            }
+                        </Card.Body>
+                    </Card>
+                </Col>
+            </Row>
         </Container>
     );
 };

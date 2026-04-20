@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.vnh.repositories.impl;
 
 import com.vnh.pojo.Appointments;
@@ -10,15 +6,13 @@ import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import jakarta.persistence.Query;
 
-/**
- *
- * @author Nguyen Hung
- */
 @Repository
+@Transactional
 public class AppointmentRepositoryImpl implements AppointmentRepository {
 
     @Autowired
@@ -27,14 +21,30 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
     @Override
     public List<Appointments> getAppointments() {
         Session session = this.sessionFactory.getObject().getCurrentSession();
-        Query q = session.createQuery("FROM Appointments", Appointments.class);
+        // Lọc lịch hẹn từ hôm nay trở về sau (Tương lai)
+        String hql = "SELECT a FROM Appointments a " +
+                     "LEFT JOIN FETCH a.patientId p " +
+                     "LEFT JOIN FETCH p.userId " + 
+                     "LEFT JOIN FETCH a.doctorId d " +
+                     "LEFT JOIN FETCH d.userId " + 
+                     "WHERE a.appointmentDate >= CURRENT_DATE " +
+                     "ORDER BY a.appointmentDate ASC, a.appointmentTime ASC";
+        Query q = session.createQuery(hql, Appointments.class);
         return q.getResultList();
     }
 
     @Override
     public Appointments getAppointmentById(int id) {
         Session session = this.sessionFactory.getObject().getCurrentSession();
-        return session.find(Appointments.class, id);
+        String hql = "SELECT a FROM Appointments a " +
+                     "LEFT JOIN FETCH a.patientId p " +
+                     "LEFT JOIN FETCH p.userId " +
+                     "LEFT JOIN FETCH a.doctorId d " +
+                     "LEFT JOIN FETCH d.userId " + 
+                     "WHERE a.id = :id";
+        return session.createQuery(hql, Appointments.class)
+                      .setParameter("id", id)
+                      .getSingleResult();
     }
 
     @Override
@@ -50,16 +60,28 @@ public class AppointmentRepositoryImpl implements AppointmentRepository {
     @Override
     public List<Appointments> findByDoctorId_Id(Integer doctorId) {
         Session session = this.sessionFactory.getObject().getCurrentSession();
-        Query q = session.createQuery("FROM Appointments WHERE doctorId.id = :doctorId", Appointments.class);
-        q.setParameter("doctorId", doctorId);
-        return q.getResultList();
+        // Bác sĩ cũng chỉ cần xem lịch từ hôm nay trở đi
+        String hql = "SELECT a FROM Appointments a " +
+                     "JOIN FETCH a.patientId p " +
+                     "JOIN FETCH p.userId " + 
+                     "WHERE a.doctorId.id = :doctorId AND a.appointmentDate >= CURRENT_DATE " +
+                     "ORDER BY a.appointmentDate ASC, a.appointmentTime ASC";
+        return session.createQuery(hql, Appointments.class)
+                      .setParameter("doctorId", doctorId)
+                      .getResultList();
     }
 
     @Override
     public List<Appointments> findByPatientId_Id(Integer patientId) {
         Session session = this.sessionFactory.getObject().getCurrentSession();
-        Query q = session.createQuery("FROM Appointments WHERE patientId.id = :patientId", Appointments.class);
-        q.setParameter("patientId", patientId);
-        return q.getResultList();
+        // Bệnh nhân xem toàn bộ lịch sử (hoặc bạn có thể lọc tương tự nếu muốn)
+        String hql = "SELECT a FROM Appointments a " +
+                     "JOIN FETCH a.doctorId d " +
+                     "JOIN FETCH d.userId " + 
+                     "WHERE a.patientId.id = :patientId " +
+                     "ORDER BY a.appointmentDate DESC";
+        return session.createQuery(hql, Appointments.class)
+                      .setParameter("patientId", patientId)
+                      .getResultList();
     }
 }

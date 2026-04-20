@@ -1,37 +1,35 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.vnh.services.impl;
 
 import com.vnh.pojo.Notifications;
 import com.vnh.pojo.Users;
 import com.vnh.repositories.NotificationRepository;
 import com.vnh.services.NotificationService;
+import java.util.Date;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-/**
- *
- * @author Nguyen Hung
- */
 @Service
+@Transactional
 public class NotificationServiceImpl implements NotificationService {
 
     @Autowired
-    private NotificationRepository notificationRepository;
+    private NotificationRepository notificationRepo;
 
     @Override
     public void createNotification(String message, Users user) {
-        Notifications notification = new Notifications();
-        notification.setMessage(message);
-        notification.setUser(user);
-        notificationRepository.save(notification);
+        Notifications n = new Notifications();
+        n.setMessage(message);
+        // Sửa từ setUserId sang setUser cho đúng POJO
+        n.setUser(user);
+        n.setCreatedAt(new Date());
+        n.setIsRead(false);
+        notificationRepo.addNotification(n);
     }
 
     @Override
     public List<Notifications> getNotificationsByUser(Users user) {
-        return notificationRepository.findByUser(user);
+        return notificationRepo.getNotificationsByUser(user);
     }
 }

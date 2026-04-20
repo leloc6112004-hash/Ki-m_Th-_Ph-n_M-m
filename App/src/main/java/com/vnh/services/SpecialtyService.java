@@ -1,16 +1,11 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package com.vnh.services;
 
 import com.vnh.pojo.Specialties;
 import java.util.List;
 
-/**
- *
- * @author Nguyen Hung
- */
 public interface SpecialtyService {
-     List<Specialties> getSpecialties();
+    List<Specialties> getSpecialties();
+    Specialties getSpecialtyById(int id);
+    void saveOrUpdate(Specialties specialty);
+    void deleteSpecialty(int id);
 }
