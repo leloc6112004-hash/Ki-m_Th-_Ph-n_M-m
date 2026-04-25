@@ -1,27 +1,38 @@
 import axios from "axios";
 import cookie from 'react-cookies'
 
-const BASE_URL = "http://localhost:8080/App/api/";
+const BASE_URL = "http://localhost:8080/App/api";
+const HOST = "http://localhost:8080";
 
 export const endpoints = {
-   'medicines': '/medicines',
-   'register': '/users',
     'login': '/login',
-    'doctors': '/doctors',
-    'specialties': '/specialties',
-    'appointments': '/appointments',
-    'users': '/users',
-    'get_current_patient_info': '/patients/me',
-    'user-details': (userId) => `/users/${userId}`, 
+    'register': '/users',
+    'profile': '/profile',
     'update-profile': (userId) => `/users/${userId}`,
-    "medical-records": (patientId) => `/patients/${patientId}/medical-records`,
-    'doctor-appointments': 'doctors/my-appointments',
-    'my-notifications': '/patients/my-notifications',
+    'current-patient': '/patients/me',
+    'medicines': '/medicines',
+    'doctors': '/doctors',
+    'specialties': '/doctors/specialties',
+    'appointments': '/appointments',
+    'my-appointments-patient': '/patients/my-appointments',
+    'my-appointments-doctor': '/doctors/my-appointments',
+    'confirm-appointment': (id) => `/doctors/appointments/${id}/confirm`,
     'doctor-patients': '/doctors/patients',
-    'doctor-appointments-confirm': '/doctors/appointments/{appointmentId}/confirm',
-     "prescriptions": "/prescriptions/create",
-     'create-medical-records': '/medical-records',
-      'medical-records-by-patient': '/medical-records/by-patient',
+    'create-medical-record': '/medical-records',
+    'medical-records-patient': (patientId) => `/patients/${patientId}/medical-records`,
+    'medical-records-history': (patientId) => `/medical-records/by-patient/${patientId}`,
+    // Sửa đúng theo PrescriptionController.java
+    'create-prescription': '/prescriptions/create',
+    'vnpay-url': (billId) => `/payments/vnpay-url/${billId}`,
+}
+
+export const getImageUrl = (path) => {
+    const defaultAvt = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+    if (!path || path === "null" || path === "") return defaultAvt;
+    if (typeof path === 'string' && (path.startsWith("http://") || path.startsWith("https://"))) {
+        return path;
+    }
+    return `${HOST}${path}`;
 }
 
 export const authApis = () => {

@@ -100,14 +100,12 @@
             <version>2.0.1</version>
         </dependency>
 
-        <!-- Thêm Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
-
     </dependencies>
     
     <build>
@@ -154,6 +152,16 @@
                             <cargo.tomcat.uriencoding>UTF-8</cargo.tomcat.uriencoding>
                         </properties>
                     </configuration>
+                    <deployables>
+                        <deployable>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <type>war</type>
+                            <properties>
+                                <context>/App</context> <!-- Ép context path là /App -->
+                            </properties>
+                        </deployable>
+                    </deployables>
                 </configuration>
             </plugin>
         </plugins>

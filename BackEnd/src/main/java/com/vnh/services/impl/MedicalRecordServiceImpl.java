@@ -1,9 +1,17 @@
 package com.vnh.services.impl;
 
 import com.vnh.dto.MedicalRecordDTO;
+import com.vnh.dto.PrescriptionItemDto;
+import com.vnh.pojo.Appointments;
 import com.vnh.pojo.MedicalRecords;
+import com.vnh.pojo.Patients;
+import com.vnh.pojo.Prescriptions;
+import com.vnh.repositories.AppointmentRepository;
 import com.vnh.repositories.MedicalRecordRepository;
+import com.vnh.repositories.PatientRepository;
 import com.vnh.services.MedicalRecordService;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,30 +22,70 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class MedicalRecordServiceImpl implements MedicalRecordService {
 
-    @Autowired
-    private MedicalRecordRepository medicalRecordRepo;
+    @Autowired private MedicalRecordRepository medicalRecordRepo;
+    @Autowired private PatientRepository patientRepo;
+    @Autowired private AppointmentRepository appointmentRepo;
 
     @Override
     public List<MedicalRecordDTO> getMedicalRecordsByUserId(int userId) {
         List<MedicalRecords> records = medicalRecordRepo.getMedicalRecordsByPatientId(userId);
-        return records.stream().map(r -> {
-            MedicalRecordDTO dto = new MedicalRecordDTO();
-            dto.setId(r.getId());
-            dto.setDiagnosis(r.getDiagnosis());
-            dto.setSymptoms(r.getSymptoms());
-            // Giả sử DTO của bạn có setCreatedAt hoặc tên khác, tôi dùng đúng field trong POJO
-            // dto.setCreatedDate(r.getCreatedAt()); 
-            return dto;
-        }).collect(Collectors.toList());
+        return records.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     @Override
-    public void createMedicalRecord(MedicalRecordDTO medicalRecordDto) {
-        // Logic triển khai
+    public void createMedicalRecord(MedicalRecordDTO dto) {
+        MedicalRecords mr = new MedicalRecords();
+        mr.setDiagnosis(dto.getDiagnosis());
+        mr.setSymptoms(dto.getSymptoms());
+        mr.setTreatmentPlan(dto.getTreatmentPlan()); // SỬA LỖI: Lưu plan treatment
+        mr.setCreatedAt(new Date());
+
+        Patients patient = patientRepo.getPatientById(dto.getPatientId());
+        Appointments appointment = appointmentRepo.getAppointmentById(dto.getAppointmentId());
+
+        if (patient == null || appointment == null) {
+            throw new IllegalArgumentException("Thông tin Bệnh nhân hoặc Lịch hẹn không hợp lệ.");
+        }
+
+        mr.setPatientId(patient);
+        mr.setAppointmentId(appointment);
+
+        medicalRecordRepo.save(mr);
     }
 
     @Override
     public List<MedicalRecords> getMedicalRecordsByPatientId(int patientId) {
         return medicalRecordRepo.getMedicalRecordsByPatientId(patientId);
+    }
+
+    @Override
+    public MedicalRecords getMedicalRecordById(int id) {
+        return medicalRecordRepo.getMedicalRecordById(id);
+    }
+
+    private MedicalRecordDTO toDto(MedicalRecords r) {
+        List<PrescriptionItemDto> items = new ArrayList<>();
+        
+        // CẢI THIỆN: Truy cập Collection an toàn nhờ @Transactional
+        if (r.getPrescriptionsCollection() != null && !r.getPrescriptionsCollection().isEmpty()) {
+            Prescriptions p = r.getPrescriptionsCollection().iterator().next();
+            if (p.getPrescriptionDetailsCollection() != null) {
+                items = p.getPrescriptionDetailsCollection().stream().map(d -> PrescriptionItemDto.builder()
+                        .medicineName(d.getMedicines() != null ? d.getMedicines().getName() : "Không rõ")
+                        .quantity(d.getQuantity())
+                        .instruction(d.getInstruction())
+                        .build()).collect(Collectors.toList());
+            }
+        }
+
+        return MedicalRecordDTO.builder()
+                .id(r.getId())
+                .symptoms(r.getSymptoms())
+                .diagnosis(r.getDiagnosis())
+                .treatmentPlan(r.getTreatmentPlan()) // SỬA LỖI: Trả về plan treatment
+                .createdDate(r.getCreatedAt())
+                .patientName(r.getPatientId() != null && r.getPatientId().getUserId() != null ? r.getPatientId().getUserId().getFullName() : "N/A")
+                .prescriptionItems(items)
+                .build();
     }
 }

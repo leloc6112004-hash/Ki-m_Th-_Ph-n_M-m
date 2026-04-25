@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Button, Row, Col, Alert } from 'react-bootstrap';
-import cookie from 'react-cookies';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { Form, Button, Row, Col, Alert, Card, Container } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import APIs, { authApis, endpoints } from "../config/Apis";
 import MySpinner from './layout/MySpinner';
+import { FaCalendarAlt, FaUserMd, FaStethoscope, FaClock, FaNotesMedical } from 'react-icons/fa';
 
 const BookingPage = () => {
-    const navigate = useNavigate(); // Initialize useNavigate
+    const navigate = useNavigate();
     const [specialties, setSpecialties] = useState([]);
     const [doctors, setDoctors] = useState([]);
     const [selectedSpecialty, setSelectedSpecialty] = useState('');
@@ -15,157 +15,121 @@ const BookingPage = () => {
     const [appointmentTime, setAppointmentTime] = useState('');
     const [reason, setReason] = useState('');
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState('');
-    const [variant, setVariant] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [message, setMessage] = useState(null);
+    const [patientInfo, setPatientInfo] = useState(null);
 
     useEffect(() => {
-        const loadSpecialties = async () => {
+        const loadData = async () => {
             try {
-                const res = await APIs.get(endpoints['specialties']);
-                if (Array.isArray(res.data)) {
-                    setSpecialties(res.data);
-                } else {
-                    console.error("API did not return an array for specialties:", res.data);
-                    setMessage('Có lỗi khi tải chuyên khoa. Vui lòng thử lại sau.');
-                    setVariant('danger');
-                }
+                // 1. Lấy info patient hiện tại
+                const pRes = await authApis().get(endpoints['current-patient']);
+                if (pRes.data.status === 200) setPatientInfo(pRes.data.data);
+
+                // 2. Lấy danh sách chuyên khoa
+                const sRes = await APIs.get(endpoints['specialties']);
+                if (sRes.data.status === 200) setSpecialties(sRes.data.data);
+
+                // 3. Lấy danh sách bác sĩ mặc định
+                const dRes = await APIs.get(endpoints['doctors']);
+                if (dRes.data.status === 200) setDoctors(dRes.data.data);
             } catch (ex) {
-                console.error("Lỗi khi tải chuyên khoa:", ex);
-                setMessage('Không thể kết nối đến máy chủ. Vui lòng thử lại sau.');
-                setVariant('danger');
+                console.error(ex);
             } finally {
                 setLoading(false);
             }
         };
-        loadSpecialties();
+        loadData();
     }, []);
 
     const handleSpecialtyChange = async (e) => {
-        const specialtyId = e.target.value;
-        setSelectedSpecialty(specialtyId);
+        const sid = e.target.value;
+        setSelectedSpecialty(sid);
         setSelectedDoctor('');
-        setDoctors([]);
-
-        if (specialtyId) {
-            try {
-                const res = await APIs.get(`${endpoints['doctors']}?specialtyId=${specialtyId}`);
-                if (Array.isArray(res.data)) {
-                    setDoctors(res.data);
-                } else {
-                    console.error("API did not return an array for doctors:", res.data);
-                }
-            } catch (ex) {
-                console.error("Lỗi khi tải danh sách bác sĩ:", ex);
-            }
-        }
+        try {
+            const res = await APIs.get(sid ? `${endpoints['doctors']}?specialtyId=${sid}` : endpoints['doctors']);
+            if (res.data.status === 200) setDoctors(res.data.data);
+        } catch (ex) { console.error(ex); }
     };
 
-    const handleAppointmentSubmit = async (e) => {
+    const handleBooking = async (e) => {
         e.preventDefault();
-        setMessage('');
-
-        const user = cookie.load('user');
-        if (!user || user.role !== 'PATIENT') {
-            setMessage('Vui lòng đăng nhập với tư cách Bệnh nhân để đặt lịch hẹn.');
-            setVariant('danger');
-            return;
-        }
-
-        if (!selectedSpecialty || !selectedDoctor || !appointmentDate || !appointmentTime) {
-            setMessage('Vui lòng điền đầy đủ thông tin bắt buộc.');
-            setVariant('danger');
-            return;
-        }
+        if (!selectedDoctor || !appointmentDate || !appointmentTime) return;
 
         try {
-            const appointmentData = {
+            setSubmitting(true);
+            const reqData = {
                 doctorId: parseInt(selectedDoctor),
-                patientId: user.id,
-                "appointmentDate": appointmentDate,
-                "appointmentTime": appointmentTime,
-                "reason": reason,
-                "status": 'pending'
+                patientId: patientInfo.id,
+                appointmentDate: appointmentDate,
+                appointmentTime: appointmentTime,
+                reason: reason
             };
-
-            const res = await authApis().post(endpoints['appointments'], appointmentData);
-
-            if (res.status === 201) {
-                // Redirect on success and pass the new appointment data
-                navigate('/profile', { state: { newAppointment: res.data } });
+            const res = await authApis().post(endpoints['appointments'], reqData);
+            if (res.data.status === 200 || res.status === 201) {
+                setMessage({ type: 'success', text: 'Đặt lịch thành công! Đang chuyển về trang cá nhân...' });
+                setTimeout(() => navigate("/profile"), 2000);
             }
         } catch (ex) {
-            console.error("Lỗi khi gửi yêu cầu đặt lịch hẹn:", ex);
-            setMessage('Có lỗi xảy ra khi đặt lịch hẹn. Vui lòng kiểm tra lại thông tin.');
-            setVariant('danger');
+            setMessage({ type: 'danger', text: 'Đặt lịch thất bại. Vui lòng thử lại.' });
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    if (loading) {
-        return <MySpinner />;
-    }
+    if (loading) return <Container className="text-center my-5"><MySpinner /></Container>;
 
     return (
-        <div className="container mt-5">
-            <h1 className="text-center text-primary mb-4">Đặt lịch hẹn khám bệnh</h1>
-            {message && <Alert variant={variant}>{message}</Alert>}
-            <Form onSubmit={handleAppointmentSubmit}>
-                <Form.Group className="mb-3">
-                    <Form.Label>Chọn chuyên khoa:</Form.Label>
-                    <Form.Control as="select" value={selectedSpecialty} onChange={handleSpecialtyChange} required>
-                        <option value="">-- Chọn chuyên khoa --</option>
-                        {specialties.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                    </Form.Control>
-                </Form.Group>
-
-                {selectedSpecialty && (
-                    <Form.Group className="mb-3">
-                        <Form.Label>Chọn bác sĩ:</Form.Label>
-                        <Form.Control as="select" value={selectedDoctor} onChange={(e) => setSelectedDoctor(e.target.value)} required>
-                            <option value="">-- Chọn bác sĩ --</option>
-                            {doctors.length > 0 ? (
-                                doctors.map(d => (
-                                    <option key={d.id} value={d.id}>{d.users.fullName}</option>
-                                ))
-                            ) : (
-                                <option disabled>Không có bác sĩ trong chuyên khoa này.</option>
-                            )}
-                        </Form.Control>
-                    </Form.Group>
-                )}
-
-                <Row>
-                    <Col>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Ngày hẹn:</Form.Label>
-                            <Form.Control
-                                type="date"
-                                value={appointmentDate}
-                                onChange={(e) => setAppointmentDate(e.target.value)}
-                                min={new Date().toISOString().split('T')[0]}
-                                required
-                            />
-                        </Form.Group>
-                    </Col>
-                    <Col>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Giờ hẹn:</Form.Label>
-                            <Form.Control type="time" value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} required />
-                        </Form.Group>
-                    </Col>
-                </Row>
-                
-                <Form.Group className="mb-3">
-                    <Form.Label>Lý do khám:</Form.Label>
-                    <Form.Control as="textarea" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
-                </Form.Group>
-
-                <Button variant="primary" type="submit">
-                    Đặt lịch hẹn
-                </Button>
-            </Form>
-        </div>
+        <Container className="py-5">
+            <Row className="justify-content-center">
+                <Col lg={9}>
+                    <Card className="border-0 shadow-lg">
+                        <Card.Header className="bg-primary text-white py-4 text-center border-0">
+                            <h2 className="mb-0 fw-bold"><FaCalendarAlt className="me-2" /> ĐẶT LỊCH KHÁM ONLINE</h2>
+                            <p className="mb-0 opacity-75">Bệnh nhân: {patientInfo?.fullName} ({patientInfo?.patientCode})</p>
+                        </Card.Header>
+                        <Card.Body className="p-4 p-md-5">
+                            {message && <Alert variant={message.type} className="shadow-sm">{message.text}</Alert>}
+                            <Form onSubmit={handleBooking}>
+                                <Row className="gy-4">
+                                    <Col md={6}>
+                                        <Form.Label className="fw-bold text-muted small"><FaStethoscope className="me-2" />CHUYÊN KHOA</Form.Label>
+                                        <Form.Select className="bg-light border-0 py-3" value={selectedSpecialty} onChange={handleSpecialtyChange}>
+                                            <option value="">-- Tất cả chuyên khoa --</option>
+                                            {specialties.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </Form.Select>
+                                    </Col>
+                                    <Col md={6}>
+                                        <Form.Label className="fw-bold text-muted small"><FaUserMd className="me-2" />BÁC SĨ</Form.Label>
+                                        <Form.Select className="bg-light border-0 py-3" value={selectedDoctor} onChange={(e) => setSelectedDoctor(e.target.value)} required>
+                                            <option value="">-- Chọn bác sĩ --</option>
+                                            {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
+                                        </Form.Select>
+                                    </Col>
+                                    <Col md={6}>
+                                        <Form.Label className="fw-bold text-muted small"><FaCalendarAlt className="me-2" />NGÀY HẸN</Form.Label>
+                                        <Form.Control type="date" className="bg-light border-0 py-3" value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} min={new Date().toISOString().split('T')[0]} required />
+                                    </Col>
+                                    <Col md={6}>
+                                        <Form.Label className="fw-bold text-muted small"><FaClock className="me-2" />GIỜ HẸN</Form.Label>
+                                        <Form.Control type="time" className="bg-light border-0 py-3" value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} required />
+                                    </Col>
+                                    <Col md={12}>
+                                        <Form.Label className="fw-bold text-muted small"><FaNotesMedical className="me-2" />LÝ DO KHÁM</Form.Label>
+                                        <Form.Control as="textarea" rows={3} className="bg-light border-0 py-3" placeholder="Mô tả triệu chứng hiện tại của bạn..." value={reason} onChange={(e) => setReason(e.target.value)} />
+                                    </Col>
+                                </Row>
+                                <div className="d-grid mt-5">
+                                    <Button variant="primary" type="submit" size="lg" className="rounded-pill fw-bold py-3 shadow" disabled={submitting}>
+                                        {submitting ? <><MySpinner size="sm" /> Đang xử lý...</> : "XÁC NHẬN ĐẶT LỊCH KHÁM"}
+                                    </Button>
+                                </div>
+                            </Form>
+                        </Card.Body>
+                    </Card>
+                </Col>
+            </Row>
+        </Container>
     );
 };
 

@@ -21,19 +21,14 @@ public class MedicalRecordRepositoryImpl implements MedicalRecordRepository {
     @Override
     public List<MedicalRecords> getMedicalRecords() {
         Session s = this.sessionFactory.getObject().getCurrentSession();
-        return s.createQuery("FROM MedicalRecords m JOIN FETCH m.patientId p JOIN FETCH p.userId", MedicalRecords.class).getResultList();
+        // Lấy danh sách bệnh án, các thông tin khác sẽ được tải khi cần trong Transaction
+        return s.createQuery("SELECT m FROM MedicalRecords m ORDER BY m.createdAt DESC", MedicalRecords.class).getResultList();
     }
 
     @Override
     public MedicalRecords getMedicalRecordById(int id) {
         Session s = this.sessionFactory.getObject().getCurrentSession();
-        try {
-            return s.createQuery("FROM MedicalRecords m JOIN FETCH m.patientId p JOIN FETCH p.userId WHERE m.id = :id", MedicalRecords.class)
-                    .setParameter("id", id)
-                    .getSingleResult();
-        } catch (Exception e) {
-            return null;
-        }
+        return s.get(MedicalRecords.class, id);
     }
 
     @Override
@@ -46,7 +41,9 @@ public class MedicalRecordRepositoryImpl implements MedicalRecordRepository {
     @Override
     public List<MedicalRecords> getMedicalRecordsByPatientId(int patientId) {
         Session s = this.sessionFactory.getObject().getCurrentSession();
-        return s.createQuery("FROM MedicalRecords m JOIN FETCH m.patientId p JOIN FETCH p.userId WHERE p.id = :patientId", MedicalRecords.class)
+        // Câu truy vấn đơn giản, Hibernate sẽ tự load các Collection nhờ @Transactional ở Service
+        String hql = "SELECT m FROM MedicalRecords m WHERE m.patientId.id = :patientId ORDER BY m.createdAt DESC";
+        return s.createQuery(hql, MedicalRecords.class)
                 .setParameter("patientId", patientId)
                 .getResultList();
     }

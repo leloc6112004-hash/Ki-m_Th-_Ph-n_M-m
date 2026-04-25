@@ -22,13 +22,31 @@ public class ApiUserController {
 
     @Autowired private UserServices userServices;
 
+    // Đăng ký người dùng
     @PostMapping(path = "/users", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Users>> create(@RequestParam Map<String, String> params, @RequestParam(value = "avatar") MultipartFile avatar) {
+    public ResponseEntity<ApiResponse<Users>> create(@RequestParam Map<String, String> params, @RequestParam(value = "avatar", required = false) MultipartFile avatar) {
         try {
             Users u = this.userServices.addUser(params, avatar);
             return new ResponseEntity<>(ApiResponse.success(u), HttpStatus.CREATED);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(ApiResponse.error(500, e.getMessage()));
+        }
+    }
+
+    // Cập nhật Profile (Đã thêm lại hàm này)
+    @PostMapping(path = "/users/{userId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Users>> updateProfile(
+            @PathVariable int userId,
+            @RequestParam Map<String, String> params,
+            @RequestParam(value = "avatar", required = false) MultipartFile avatar) {
+        try {
+            Users updatedUser = this.userServices.updateUser(userId, params, avatar);
+            if (updatedUser != null) {
+                return ResponseEntity.ok(ApiResponse.success(updatedUser));
+            }
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "Cập nhật không thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(ApiResponse.error(500, "Lỗi server: " + e.getMessage()));
         }
     }
 
@@ -41,8 +59,9 @@ public class ApiUserController {
                 
                 Map<String, Object> data = new HashMap<>();
                 data.put("token", token);
-                // Trả về dữ liệu cơ bản để tránh lỗi đệ quy
+                
                 Map<String, String> userMap = new HashMap<>();
+                userMap.put("id", userDetails.getId().toString()); // Thêm ID để FE dễ dùng
                 userMap.put("username", userDetails.getUsername());
                 userMap.put("role", userDetails.getRole());
                 userMap.put("fullName", userDetails.getFullName());
@@ -61,9 +80,11 @@ public class ApiUserController {
         if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         Users user = this.userServices.getUserByUsername(principal.getName());
         Map<String, String> userMap = new HashMap<>();
+        userMap.put("id", user.getId().toString());
         userMap.put("username", user.getUsername());
         userMap.put("fullName", user.getFullName());
         userMap.put("role", user.getRole());
+        userMap.put("avatar", user.getAvatar());
         return ResponseEntity.ok(ApiResponse.success(userMap));
     }
 }
